@@ -12,3 +12,4 @@ Fast animated voxelized phantom for Monte Carlo simulation
 * pyglet 1.5.15
 * pyopengl 3.1.5
 * imgui 1.3.0
+* numpy 1.20.1
