@@ -1,127 +1,153 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
+import dearpygui.dearpygui as dpg
+import tools, rigging
 
-import pyglet
-from pyglet import gl
-import imgui
-from imgui.integrations.pyglet import create_renderer
+class MainApp():
+    def __init__(self):
+        ## Screen setup
+        try:
+            from screeninfo import get_monitors
+            self.mainWinWidth = get_monitors()[0].width
+            self.mainWinHeight = get_monitors()[0].height
+        except:
+            print('/!\\ Could not find screeninfo module; run pip install screeninfo')
+            self.mainWinWidth = 3840
+            self.mainWinHeight = 2160    
 
-from gui import MenuGUI
-from rigging import Skeleton
+        self.mainWinWidth /= 2
+        self.mainWinHeight /= 2
+        self.mainWinWidth = int(self.mainWinWidth)
+        self.mainWinHeight = int(self.mainWinHeight)
 
-# class Model:
+        self.frameWidth = (0.90*self.mainWinWidth) // 3
+        self.frameHeight = 0.95*self.mainWinHeight
 
-#     def get_tex(self,file):
-#         tex = pyglet.image.load(file).get_texture()
-#         gl.glTexParameterf(gl.GL_TEXTURE_2D,gl.GL_TEXTURE_MIN_FILTER,gl.GL_NEAREST)
-#         gl.glTexParameterf(gl.GL_TEXTURE_2D,gl.GL_TEXTURE_MAG_FILTER,gl.GL_NEAREST)
-#         return pyglet.graphics.TextureGroup(tex)
+        ## Colors palette
+        self.PBlue = (27, 231, 255, 255)
+        self.PGreen = (110, 235, 131, 255)
+        self.PYellow = (228, 255, 26, 255)
+        self.PGold = (232, 170, 20, 255)
+        self.PRed = (255, 87, 20, 255)
+        self.PGround = (39, 44, 53, 255)
+        self.PWhite = (255, 255, 255, 255)
 
-#     def __init__(self):
+        ## init UI
+        dpg.create_context()
+        dpg.create_viewport(title='AniVox', clear_color=self.PGround, width=self.mainWinWidth, height=self.mainWinHeight)
+        dpg.set_global_font_scale(2)
 
-#         self.top = self.get_tex('grass_top.png')
-#         self.side = self.get_tex('grass_side.png')
-#         self.bottom = self.get_tex('dirt.png')
+        dpg.setup_dearpygui()
+        dpg.show_viewport()
 
-#         self.batch = pyglet.graphics.Batch()
+        ## Load images
+        pathImagePhanFront = '../data/mash_cont_front.png'
+        pathImagePhanSide = '../data/mash_cont_side.png'
 
-#         tex_coords = ('t2f',(0,0, 1,0, 1,1, 0,1, ))
+        width, height, channels, data = dpg.load_image(pathImagePhanFront)
+        self.imagePhanFrontPosMin, self.imagePhanFrontPosMax = tools.getCenteredImage(width, height, self.frameWidth, self.frameHeight)
+        with dpg.texture_registry():
+            dpg.add_static_texture(width, height, data, tag='image_phan_front')
 
-#         x,y,z = 0,0,-1
-#         X,Y,Z = x+1,y+1,z+1
+        width, height, channels, data = dpg.load_image(pathImagePhanSide)
+        self.imagePhanSidePosMin, self.imagePhanSidePosMax = tools.getCenteredImage(width, height, self.frameWidth, self.frameHeight)
+        with dpg.texture_registry():
+            dpg.add_static_texture(width, height, data, tag='image_phan_side')
 
-#         self.batch.add(4,gl.GL_QUADS,self.side,('v3f',(x,y,z, x,y,Z, x,Y,Z, x,Y,z, )),tex_coords)
-#         self.batch.add(4,gl.GL_QUADS,self.side,('v3f',(X,y,Z, X,y,z, X,Y,z, X,Y,Z, )),tex_coords)
-#         self.batch.add(4,gl.GL_QUADS,self.bottom,('v3f',(x,y,z, X,y,z, X,y,Z, x,y,Z, )),tex_coords)
-#         self.batch.add(4,gl.GL_QUADS,self.top,('v3f',(x,Y,Z, X,Y,Z, X,Y,z, x,Y,z, )),tex_coords)
-#         self.batch.add(4,gl.GL_QUADS,self.side,('v3f',(X,y,z, x,y,z, x,Y,z, X,Y,z, )),tex_coords)
-#         self.batch.add(4,gl.GL_QUADS,self.side,('v3f',(x,y,Z, X,y,Z, X,Y,Z, x,Y,Z, )),tex_coords)
+        # Test
+        with dpg.handler_registry():
+            dpg.add_mouse_click_handler(callback=self.toto)
 
 
-#     def draw(self):
-#         self.batch.draw()
-
-class MyApp(pyglet.window.Window):
-    
-    def __init__(self,*args,**kwargs):
-        super().__init__(*args,**kwargs)
-
-        # Get window size
-        self.width, self.height = self.get_size()
-        
-        # Create imgui context
-        imgui.create_context()
-        self.impl = create_renderer(self)
-
-        # Get gui instance
-        self.guiMenu = MenuGUI()
-
-        # Skeleton instance
-        self.skeleton = Skeleton()
-
-        # Init OpenGL
-        self.openGLInit()
-
-        self.ViewRot = 0
-
-    def openGLInit(self):
-        gl.glClearColor(0.0, 0.0, 0.0, 0.0)
-        gl.glClearDepth(1.0) 
-        gl.glDepthFunc(gl.GL_LESS)
-        gl.glEnable(gl.GL_DEPTH_TEST)
-        gl.glShadeModel(gl.GL_SMOOTH)
-        
-        
-        gl.glMatrixMode(gl.GL_PROJECTION)
-        gl.glLoadIdentity()
-        gl.gluPerspective(70, float(self.width)/float(self.height), 0.05, 1000)
-        gl.glMatrixMode(gl.GL_MODELVIEW)
-
-    def openGLViewInit(self):
-        gl.glMatrixMode(gl.GL_PROJECTION)
-        gl.glLoadIdentity()
-        gl.gluPerspective(70, self.width/self.height, 0.05, 1000);
-        gl.glMatrixMode(gl.GL_MODELVIEW)
-        gl.glLoadIdentity()
-
-        # gl.glEnable(gl.GL_LIGHTING)
-        # gl.glLightfv(gl.GL_LIGHT0, gl.GL_AMBIENT, (gl.GLfloat*4)(1,1,1,1))
-        # gl.glLightfv(gl.GL_LIGHT0, gl.GL_DIFFUSE, (gl.GLfloat*4)(1,1,1,1))
-        # gl.glEnable(gl.GL_LIGHT0)
-
-    def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
-        if buttons == 1:
-            self.ViewRot += dx
-
-    def on_draw(self):
-        self.clear()
-        self.openGLViewInit()
-        
-        # gl.glPushMatrix()
-        gl.glTranslatef(0, 0, -500)
-        gl.glRotatef(0, 1.0, 0.0, 0.0)
-        gl.glRotatef(self.ViewRot, 0.0, 1.0, 0.0)
-        gl.glRotatef(0, 0.0, 0.0, 1.0)
-        
         
 
-        self.skeleton.draw()
-        # self.model.draw()
-        # gl.glPopMatrix()
+    def toto(self, sender, app_data):
+        x, y = dpg.get_mouse_pos(local=False)
+        px, py = dpg.get_item_rect_min('leftView')
+        print(x-px, y-py)
+        # print(x, y)
+        # print(px, py)
+        #print(dpg.get_mouse_pos(local=False))
+        #print(dpg.get_item_rect_max('leftView'))
 
-        # UI
-        imgui.new_frame()
+        self.buildArms()
 
-        self.guiMenu.Build()
-        imgui.render()
-        self.impl.render(imgui.get_draw_data())
+    def buildArms(self):
+        limRot = (360, 360, 360)
+        rightArm = rigging.Skeleton()
+        rightArm.addSerialBone('rightArm', (180, 215, 0), (165, 360, 0), limRot, self.PGreen)
+        rightArm.addSerialBone('rightForearm', (165, 360, 0), (140, 490, 0), limRot, self.PYellow)
+        #rightArm.addSerialBone('rightHand', (140, 490, 0), (135, 580, 0), limRot, self.PGold)
+
+        # draw
+        self.drawSkeleton(rightArm)
+
+    def drawSkeleton(self, skel):
         
-        imgui.end_frame()
+        try:
+            dpg.delete_item('bonesLayer')
+        except:
+            # The first time this layer doesn't exist, pass
+            pass
+        
+        with dpg.draw_layer(parent='leftView', tag='bonesLayer'):
 
-    def run(self):
-        pyglet.app.run()
+            nBones = skel.getNbBones()
+            for i in range(nBones):
+                aBone = skel.getBone(i)
+
+                allLines = aBone.getDrawLines()
+                for aLine in allLines:
+                    dpg.draw_line(aLine[0], aLine[1], color=aBone.getDrawColor(), thickness=2)
+
+    # Start Main app
+    def start(self):
+
+        # Main window
+        with dpg.window(label="Main Window", width=self.mainWinWidth, height=self.mainWinHeight, pos=(0, 0), no_background=True,
+                                no_move=True, no_resize=True, no_collapse=True, no_close=True, no_title_bar=True):
+            
+            with dpg.group(horizontal=True):
+                with dpg.group(horizontal=False, width=self.frameWidth):
+
+                    dpg.add_text('RIGHT', color=self.PYellow)
+                    dpg.add_text('Arm', color=self.PWhite)
+                    dpg.add_slider_int(label='X-axis', default_value=0, min_value=-90, max_value=90)
+                    dpg.add_text('Forearm', color=self.PWhite)
+                    dpg.add_slider_int(label='X-axis', default_value=0, min_value=0, max_value=170)
+                    dpg.add_slider_int(label='Z-axis', default_value=0, min_value=-90, max_value=90)
+                    dpg.add_button(label='reset', small=True)
+
+                    dpg.add_spacer(height=50)
+                    dpg.add_text('LEFT', color=self.PGreen)
+                    dpg.add_text('Arm', color=self.PWhite)
+                    dpg.add_slider_int(label='X-axis', default_value=0, min_value=-90, max_value=90)
+                    dpg.add_text('Forearm', color=self.PWhite)
+                    dpg.add_slider_int(label='X-axis', default_value=0, min_value=0, max_value=170)
+                    dpg.add_slider_int(label='Z-axis', default_value=0, min_value=-90, max_value=90)
+                    dpg.add_button(label='reset', small=True)
+                    
+
+                with dpg.drawlist(tag='leftView', width=self.frameWidth, height=self.frameHeight):
+                    dpg.draw_image('image_phan_front', 
+                                    pmin=self.imagePhanFrontPosMin, 
+                                    pmax=self.imagePhanFrontPosMax,
+                                    uv_min=(0, 0),
+                                    uv_max=(1, 1))
+                    dpg.draw_polygon(points=[(0, 0), (self.frameWidth, 0), (self.frameWidth, self.frameHeight), 
+                                     (0, self.frameHeight), (0, 0)], color=(255, 255, 255, 255))
+                
+                with dpg.drawlist(tag='rightView', width=self.frameWidth, height=self.frameHeight):
+                    dpg.draw_image('image_phan_side', 
+                                    pmin=self.imagePhanSidePosMin, 
+                                    pmax=self.imagePhanSidePosMax,
+                                    uv_min=(0, 0),
+                                    uv_max=(1, 1))         
+                    dpg.draw_polygon(points=[(0, 0), (self.frameWidth, 0), (self.frameWidth, self.frameHeight), 
+                                     (0, self.frameHeight), (0, 0)], color=(255, 255, 255, 255))
+
+            dpg.start_dearpygui()
 
 
-if __name__ == "__main__":
-    app = MyApp(width=1280, height=720, caption='Test', resizable=False)
-    app.run()
+
+if __name__ == '__main__':
+    App = MainApp()
+    App.start()

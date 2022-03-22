@@ -1,3 +1,5 @@
-dev_venv
+venv
 .vscode
 .DS_Store
+data
+__pycache__
