@@ -1,6 +1,5 @@
 venv
 .vscode
 .DS_Store
-data
 __pycache__
 *test*
