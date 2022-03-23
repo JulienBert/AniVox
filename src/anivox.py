@@ -53,30 +53,29 @@ class MainApp():
         with dpg.texture_registry():
             dpg.add_static_texture(width, height, data, tag='image_phan_side')
 
-        # # Test
-        # with dpg.handler_registry():
-        #     dpg.add_mouse_click_handler(callback=self.toto)
+        # Test
+        with dpg.handler_registry():
+            dpg.add_mouse_click_handler(callback=self.toto)
 
 
         
 
-    # def toto(self, sender, app_data):
-    #     x, y = dpg.get_mouse_pos(local=False)
-    #     px, py = dpg.get_item_rect_min('leftView')
-    #     print(x-px, y-py)
-    #     # print(x, y)
-    #     # print(px, py)
-    #     #print(dpg.get_mouse_pos(local=False))
-    #     #print(dpg.get_item_rect_max('leftView'))
+    def toto(self, sender, app_data):
+        x, y = dpg.get_mouse_pos(local=False)
+        px, py = dpg.get_item_rect_min('rightView')
+        print(x-px, y-py)
+        # print(x, y)
+        # print(px, py)
+        #print(dpg.get_mouse_pos(local=False))
+        #print(dpg.get_item_rect_max('leftView'))
 
     #     self.buildArms()
 
     def buildArms(self):
-        limRot = (360, 360, 360)
 
         bonesControlPoints = np.array([[0, 180, 165, 140, 135],
                                        [0, 215, 360, 490, 580],
-                                       [0,   0,   0,   0,   0]])
+                                       [0, 295, 290, 290, 285]])
         bonesNames = ('org', 'rightArm', 'rightForearm', 'rightHand')
         bonesColors = (self.PBlue, self.PGreen, self.PYellow, self.PGold)
 
@@ -87,18 +86,34 @@ class MainApp():
     def drawSkeleton(self, skel):
         
         try:
-            dpg.delete_item('bonesLayer')
+            dpg.delete_item('bonesLayerLeftView')
         except:
             # The first time this layer doesn't exist, pass
             pass
         
-        with dpg.draw_layer(parent='leftView', tag='bonesLayer'):
+        with dpg.draw_layer(parent='leftView', tag='bonesLayerLeftView'):
 
             nBones = skel.getNbBones()
             for i in range(nBones):
                 aBone = skel.getBone(i)
 
-                allLines = aBone.getDrawLines()
+                allLines = aBone.getDrawLinesInXYPlane()
+                for aLine in allLines:
+                    dpg.draw_line(aLine[0], aLine[1], color=aBone.getDrawColor(), thickness=2)
+
+        try:
+            dpg.delete_item('bonesLayerRightView')
+        except:
+            # The first time this layer doesn't exist, pass
+            pass
+        
+        with dpg.draw_layer(parent='rightView', tag='bonesLayerRightView'):
+
+            nBones = skel.getNbBones()
+            for i in range(nBones):
+                aBone = skel.getBone(i)
+
+                allLines = aBone.getDrawLinesInYZPlane()
                 for aLine in allLines:
                     dpg.draw_line(aLine[0], aLine[1], color=aBone.getDrawColor(), thickness=2)
 

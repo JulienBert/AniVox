@@ -13,11 +13,11 @@ class Bone():
         #
         # Diamond drawing
         #
-        #        + p0
-        #      /   \
-        #  pm +--+--+ pp
-        #     \   p /
-        #     \     /
+        #        + p0                  + pq
+        #      /   \                 p/
+        #  pm +--+--+ pp      pm +---+---+ pp
+        #     \   p /               / 
+        #     \     /              + pr
         #      \   /
         #      \   /
         #       \ /
@@ -58,29 +58,32 @@ class Bone():
 
         # express p0 according to p
         p0p = p0 - p
+        
         # rotate -pi/2   ->  [[0, -1], [1, 0]]
-        pp = np.array([-p0p[1], p0p[0], 0])
+        pp = np.array([-p0p[1], p0p[0], p0p[2]])
+        # rotate pi/2   ->  [[0, 1], [-1, 0]]
+        pm = np.array([p0p[1], -p0p[0], p0p[2]])
+
+        # the same for z-axis
+        pq = np.array([p0p[0], -p0p[2],  p0p[1]])
+        pr = np.array([p0p[0],  p0p[2], -p0p[1]])
+
         # move back pp to global frame
         pp = p + pp
-
-        ## From p get pm (on xy-plan)
-
-        # express p0 according to p
-        p0p = p0 - p
-        # rotate pi/2   ->  [[0, 1], [-1, 0]]
-        pm = np.array([p0p[1], -p0p[0], 0])
-        # move back pp to global frame
         pm = p + pm
+        pq = p + pq
+        pr = p + pr
 
         self.sBoneName = name
 
-        #                                  0      1      2     3      4
-        self.mRestPoseVertex = np.matrix([[p0[0], p1[0], p[0], pp[0], pm[0]],
-                                          [p0[1], p1[1], p[1], pp[1], pm[1]],  
-                                          [p0[2], p1[2], p[2], pp[2], pm[2]],
-                                          [    1,     1,    1,     1,     1]], 'float32')
+        #                                  0      1      2     3      4      5      6
+        self.mRestPoseVertex = np.matrix([[p0[0], p1[0], p[0], pp[0], pm[0], pq[0], pr[0]],
+                                          [p0[1], p1[1], p[1], pp[1], pm[1], pq[1], pr[1]],  
+                                          [p0[2], p1[2], p[2], pp[2], pm[2], pq[2], pr[2]],
+                                          [    1,     1,    1,     1,     1,     1,     1]], 'float32')
 
-        self.aDrawEdges = np.array([[0, 3], [0, 4], [3, 4], [4, 1], [3, 1]], 'int16')
+        self.aDrawEdges = np.array([[0, 3], [0, 4], [3, 4], [4, 1], [3, 1],
+                                    [0, 6], [0, 5], [6, 1], [5, 1], [5, 6]], 'int16')
 
         self.mPoseVertex = self.mGlobalTransformation * self.mRestPoseVertex
 
@@ -130,15 +133,29 @@ class Bone():
         self.mGlobalTransformation = mTransformation.copy()
         self.mPoseVertex = self.mGlobalTransformation * self.mRestPoseVertex
 
-    def getDrawLines(self):
+    def getDrawLinesInXYPlane(self):
 
         allLines = []
         for i in range(len(self.aDrawEdges)):
             iP1 = self.aDrawEdges[i][0]
             iP2 = self.aDrawEdges[i][1]
-
+            #                      X                         Y                         Z
             P1 = (self.mPoseVertex[0, iP1], self.mPoseVertex[1, iP1], self.mPoseVertex[2, iP1])
             P2 = (self.mPoseVertex[0, iP2], self.mPoseVertex[1, iP2], self.mPoseVertex[2, iP2])
+            aLine = (P1, P2)
+            allLines.append(aLine)
+
+        return allLines
+
+    def getDrawLinesInYZPlane(self):
+
+        allLines = []
+        for i in range(len(self.aDrawEdges)):
+            iP1 = self.aDrawEdges[i][0]
+            iP2 = self.aDrawEdges[i][1]
+            #                      Z                         Y                         X
+            P1 = (self.mPoseVertex[2, iP1], self.mPoseVertex[1, iP1], self.mPoseVertex[0, iP1])
+            P2 = (self.mPoseVertex[2, iP2], self.mPoseVertex[1, iP2], self.mPoseVertex[0, iP2])
             aLine = (P1, P2)
             allLines.append(aLine)
 
