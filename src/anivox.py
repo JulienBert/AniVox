@@ -1,4 +1,5 @@
 import dearpygui.dearpygui as dpg
+import numpy as np
 import tools, rigging
 
 class MainApp():
@@ -52,33 +53,36 @@ class MainApp():
         with dpg.texture_registry():
             dpg.add_static_texture(width, height, data, tag='image_phan_side')
 
-        # Test
-        with dpg.handler_registry():
-            dpg.add_mouse_click_handler(callback=self.toto)
+        # # Test
+        # with dpg.handler_registry():
+        #     dpg.add_mouse_click_handler(callback=self.toto)
 
 
         
 
-    def toto(self, sender, app_data):
-        x, y = dpg.get_mouse_pos(local=False)
-        px, py = dpg.get_item_rect_min('leftView')
-        print(x-px, y-py)
-        # print(x, y)
-        # print(px, py)
-        #print(dpg.get_mouse_pos(local=False))
-        #print(dpg.get_item_rect_max('leftView'))
+    # def toto(self, sender, app_data):
+    #     x, y = dpg.get_mouse_pos(local=False)
+    #     px, py = dpg.get_item_rect_min('leftView')
+    #     print(x-px, y-py)
+    #     # print(x, y)
+    #     # print(px, py)
+    #     #print(dpg.get_mouse_pos(local=False))
+    #     #print(dpg.get_item_rect_max('leftView'))
 
-        self.buildArms()
+    #     self.buildArms()
 
     def buildArms(self):
         limRot = (360, 360, 360)
-        rightArm = rigging.Skeleton()
-        rightArm.addSerialBone('rightArm', (180, 215, 0), (165, 360, 0), limRot, self.PGreen)
-        rightArm.addSerialBone('rightForearm', (165, 360, 0), (140, 490, 0), limRot, self.PYellow)
-        #rightArm.addSerialBone('rightHand', (140, 490, 0), (135, 580, 0), limRot, self.PGold)
 
-        # draw
-        self.drawSkeleton(rightArm)
+        bonesControlPoints = np.array([[0, 180, 165, 140, 135],
+                                       [0, 215, 360, 490, 580],
+                                       [0,   0,   0,   0,   0]])
+        bonesNames = ('org', 'rightArm', 'rightForearm', 'rightHand')
+        bonesColors = (self.PBlue, self.PGreen, self.PYellow, self.PGold)
+
+        rightArm = rigging.Skeleton()
+        rightArm.addSerialBones(bonesControlPoints, bonesNames, bonesColors)
+        return rightArm
 
     def drawSkeleton(self, skel):
         
@@ -98,6 +102,49 @@ class MainApp():
                 for aLine in allLines:
                     dpg.draw_line(aLine[0], aLine[1], color=aBone.getDrawColor(), thickness=2)
 
+    # Callback RIGHT ARM
+    def callBackSliderRotXArmRight(self, sender, app_data):
+        self.rightArm.setBoneOrientationRx(0, np.pi*app_data/180.0)
+        self.drawSkeleton(self.rightArm)
+
+    # def callBackSliderRotYArmRight(self, sender, app_data):
+    #     self.rightArm.setBoneOrientationRy(0, np.pi*app_data/180.0)
+    #     self.drawSkeleton(self.rightArm)
+
+    def callBackSliderRotZArmRight(self, sender, app_data):
+        self.rightArm.setBoneOrientationRz(0, np.pi*app_data/180.0)
+        self.drawSkeleton(self.rightArm)
+
+    def callBackSliderRotXForearmRight(self, sender, app_data):
+        self.rightArm.setBoneOrientationRx(1, np.pi*app_data/180.0)
+        self.drawSkeleton(self.rightArm)
+
+    def callBackSliderRotZForearmRight(self, sender, app_data):
+        self.rightArm.setBoneOrientationRz(1, np.pi*app_data/180.0)
+        self.drawSkeleton(self.rightArm)
+
+    def callBackSliderRotXHandRight(self, sender, app_data):
+        self.rightArm.setBoneOrientationRx(2, np.pi*app_data/180.0)
+        self.drawSkeleton(self.rightArm)
+
+    def callBackSliderRotZHandRight(self, sender, app_data):
+        self.rightArm.setBoneOrientationRz(2, np.pi*app_data/180.0)
+        self.drawSkeleton(self.rightArm)
+
+    def callBackResetRightArm(self, sender, app_data):
+        dpg.configure_item('sliderRotXArmRight', default_value=0)
+        dpg.configure_item('sliderRotZArmRight', default_value=0)
+        dpg.configure_item('sliderRotXForearmRight', default_value=0)
+        dpg.configure_item('sliderRotZForearmRight', default_value=0)
+        dpg.configure_item('sliderRotXHandRight', default_value=0)
+        dpg.configure_item('sliderRotZHandRight', default_value=0)
+
+        for i in range(self.rightArm.nbBones):
+            self.rightArm.setBoneOrientationRx(i, 0.0)
+            self.rightArm.setBoneOrientationRz(i, 0.0)
+
+        self.drawSkeleton(self.rightArm)
+
     # Start Main app
     def start(self):
 
@@ -108,22 +155,25 @@ class MainApp():
             with dpg.group(horizontal=True):
                 with dpg.group(horizontal=False, width=self.frameWidth):
 
-                    dpg.add_text('RIGHT', color=self.PYellow)
-                    dpg.add_text('Arm', color=self.PWhite)
-                    dpg.add_slider_int(label='X-axis', default_value=0, min_value=-90, max_value=90)
-                    dpg.add_text('Forearm', color=self.PWhite)
-                    dpg.add_slider_int(label='X-axis', default_value=0, min_value=0, max_value=170)
-                    dpg.add_slider_int(label='Z-axis', default_value=0, min_value=-90, max_value=90)
-                    dpg.add_button(label='reset', small=True)
+                    dpg.add_text('RIGHT Arm', color=self.PGreen)
+                    dpg.add_slider_int(label='Rot X', default_value=0, min_value=-90, max_value=90,
+                                       callback=self.callBackSliderRotXArmRight, tag='sliderRotXArmRight')
+                    # dpg.add_slider_int(label='Rot Y', default_value=0, min_value=-90, max_value=90,
+                    #                    callback=self.callBackSliderRotYArmRight, tag='sliderRotYArmRight')
+                    dpg.add_slider_int(label='Rot Z', default_value=0, min_value=-90, max_value=90,
+                                       callback=self.callBackSliderRotZArmRight, tag='sliderRotZArmRight')
+                    dpg.add_text('RIGHT Forearm', color=self.PYellow)
+                    dpg.add_slider_int(label='Rot X', default_value=0, min_value=-90, max_value=90,
+                                       callback=self.callBackSliderRotXForearmRight, tag='sliderRotXForearmRight')
+                    dpg.add_slider_int(label='Rot Z', default_value=0, min_value=-90, max_value=90,
+                                       callback=self.callBackSliderRotZForearmRight, tag='sliderRotZForearmRight')
+                    dpg.add_text('RIGHT Hand', color=self.PGold)
+                    dpg.add_slider_int(label='Rot X', default_value=0, min_value=-90, max_value=90,
+                                       callback=self.callBackSliderRotXHandRight, tag='sliderRotXHandRight')
+                    dpg.add_slider_int(label='Rot Z', default_value=0, min_value=-90, max_value=90,
+                                       callback=self.callBackSliderRotZHandRight, tag='sliderRotZHandRight')
 
-                    dpg.add_spacer(height=50)
-                    dpg.add_text('LEFT', color=self.PGreen)
-                    dpg.add_text('Arm', color=self.PWhite)
-                    dpg.add_slider_int(label='X-axis', default_value=0, min_value=-90, max_value=90)
-                    dpg.add_text('Forearm', color=self.PWhite)
-                    dpg.add_slider_int(label='X-axis', default_value=0, min_value=0, max_value=170)
-                    dpg.add_slider_int(label='Z-axis', default_value=0, min_value=-90, max_value=90)
-                    dpg.add_button(label='reset', small=True)
+                    dpg.add_button(label='RESET', small=True, callback=self.callBackResetRightArm)
                     
 
                 with dpg.drawlist(tag='leftView', width=self.frameWidth, height=self.frameHeight):
@@ -144,7 +194,14 @@ class MainApp():
                     dpg.draw_polygon(points=[(0, 0), (self.frameWidth, 0), (self.frameWidth, self.frameHeight), 
                                      (0, self.frameHeight), (0, 0)], color=(255, 255, 255, 255))
 
-            dpg.start_dearpygui()
+        
+        # draw
+        self.rightArm = self.buildArms()
+        self.drawSkeleton(self.rightArm)
+
+        dpg.start_dearpygui()
+
+        
 
 
 
