@@ -1,6 +1,6 @@
 import dearpygui.dearpygui as dpg
 import numpy as np
-import tools, rigging
+import tools, rigging, improc
 
 class MainApp():
     def __init__(self):
@@ -53,23 +53,21 @@ class MainApp():
         with dpg.texture_registry():
             dpg.add_static_texture(width, height, data, tag='image_phan_side')
 
-        # Test
-        with dpg.handler_registry():
-            dpg.add_mouse_click_handler(callback=self.toto)
-
-
+        # # Test
+        # with dpg.handler_registry():
+        #     dpg.add_mouse_click_handler(callback=self.toto)
         
 
-    def toto(self, sender, app_data):
-        x, y = dpg.get_mouse_pos(local=False)
-        px, py = dpg.get_item_rect_min('rightView')
-        print(x-px, y-py)
-        # print(x, y)
-        # print(px, py)
-        #print(dpg.get_mouse_pos(local=False))
-        #print(dpg.get_item_rect_max('leftView'))
+    # def toto(self, sender, app_data):
+    #     x, y = dpg.get_mouse_pos(local=False)
+    #     px, py = dpg.get_item_rect_min('rightView')
+    #     print(x-px, y-py)
+    #     # print(x, y)
+    #     # print(px, py)
+    #     #print(dpg.get_mouse_pos(local=False))
+    #     #print(dpg.get_item_rect_max('leftView'))
 
-    #     self.buildArms()
+    # #     self.buildArms()
 
     def buildArms(self):
 
@@ -160,6 +158,12 @@ class MainApp():
 
         self.drawSkeleton(self.rightArm)
 
+    def callBackProcessing(self):
+        improc.getPhantomImageAtRestPose('../data/mash_body.mhd',
+                                         ['../data/mash_left_arm.mhd', '../data/mash_left_forearm.mhd',
+                                          '../data/mash_right_arm.mhd', '../data/mash_right_forearm.mhd'])
+        
+
     # Start Main app
     def start(self):
 
@@ -190,6 +194,7 @@ class MainApp():
 
                     dpg.add_button(label='RESET', small=True, callback=self.callBackResetRightArm)
                     
+                    dpg.add_button(label='PROCESSING', small=True, callback=self.callBackProcessing)
 
                 with dpg.drawlist(tag='leftView', width=self.frameWidth, height=self.frameHeight):
                     dpg.draw_image('image_phan_front', 
