@@ -39,19 +39,20 @@ class MainApp():
         dpg.setup_dearpygui()
         dpg.show_viewport()
 
-        ## Load images
-        pathImagePhanFront = '../data/mash_cont_front.png'
-        pathImagePhanSide = '../data/mash_cont_side.png'
-
-        width, height, channels, data = dpg.load_image(pathImagePhanFront)
+        ## Load images from data
+        dataFront, sizeFront, dataSide, sizeSide = improc.getPhantomImageAtRestPose('../data/mash_body.mhd',
+                                                                                    ['../data/mash_left_arm.mhd', '../data/mash_left_forearm.mhd',
+                                                                                    '../data/mash_right_arm.mhd', '../data/mash_right_forearm.mhd'])
+        
+        width, height = sizeFront
         self.imagePhanFrontPosMin, self.imagePhanFrontPosMax = tools.getCenteredImage(width, height, self.frameWidth, self.frameHeight)
         with dpg.texture_registry():
-            dpg.add_static_texture(width, height, data, tag='image_phan_front')
+            dpg.add_static_texture(width, height, dataFront, tag='image_phan_front')
 
-        width, height, channels, data = dpg.load_image(pathImagePhanSide)
+        width, height = sizeSide
         self.imagePhanSidePosMin, self.imagePhanSidePosMax = tools.getCenteredImage(width, height, self.frameWidth, self.frameHeight)
         with dpg.texture_registry():
-            dpg.add_static_texture(width, height, data, tag='image_phan_side')
+            dpg.add_static_texture(width, height, dataSide, tag='image_phan_side')
 
         # # Test
         # with dpg.handler_registry():
