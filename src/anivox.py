@@ -40,7 +40,7 @@ class MainApp():
         dpg.show_viewport()
 
         ## Load images from data
-        dataFront, sizeFront, dataSide, sizeSide = improc.getPhantomImageAtRestPose('../data/mash_body.mhd',
+        dataFront, sizeFront, dataSide, sizeSide = improc._getPhantomImageAtRestPose('../data/mash_body.mhd',
                                                                                     ['../data/mash_left_arm.mhd', '../data/mash_left_forearm.mhd',
                                                                                     '../data/mash_right_arm.mhd', '../data/mash_right_forearm.mhd'])
         
@@ -159,10 +159,11 @@ class MainApp():
 
         self.drawSkeleton(self.rightArm)
 
-    def callBackProcessing(self):
-        improc.getPhantomImageAtRestPose('../data/mash_body.mhd',
-                                         ['../data/mash_left_arm.mhd', '../data/mash_left_forearm.mhd',
-                                          '../data/mash_right_arm.mhd', '../data/mash_right_forearm.mhd'])
+    def callBackUpdateSkin(self):
+        pass
+        # improc.getPhantomImageAtRestPose('../data/mash_body.mhd',
+        #                                  ['../data/mash_left_arm.mhd', '../data/mash_left_forearm.mhd',
+        #                                   '../data/mash_right_arm.mhd', '../data/mash_right_forearm.mhd'])
         
 
     # Start Main app
@@ -195,7 +196,7 @@ class MainApp():
 
                     dpg.add_button(label='RESET', small=True, callback=self.callBackResetRightArm)
                     
-                    dpg.add_button(label='PROCESSING', small=True, callback=self.callBackProcessing)
+                    dpg.add_button(label='UPDATE SKIN', small=True, callback=self.callBackUpdateSkin)
 
                 with dpg.drawlist(tag='leftView', width=self.frameWidth, height=self.frameHeight):
                     dpg.draw_image('image_phan_front', 

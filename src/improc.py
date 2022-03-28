@@ -1,4 +1,5 @@
 import SimpleITK as sitk
+from matplotlib.pyplot import bone
 import numpy as np
 
 def __exportProjPNG(image, axis):
@@ -18,9 +19,10 @@ def __exportPNG(image):
     imOut = sitk.GetImageFromArray(aProj)
     sitk.WriteImage(imOut, 'debug.png')
 
-def __binImage(image):
+def __binImage(image, low, up):
     proc = sitk.BinaryThresholdImageFilter()
-    proc.SetLowerThreshold(1.0)
+    proc.SetLowerThreshold(low)
+    proc.SetUpperThreshold(up)
     return proc.Execute(image)
 
 def __sobelImage(image):
@@ -37,10 +39,28 @@ def __mipImage(image, axis):
     proc.SetProjectionDimension(axis)
     return proc.Execute(image)
 
+def __meipImage(image, axis):
+    proc = sitk.MeanProjectionImageFilter()
+    proc.SetProjectionDimension(axis)
+    return proc.Execute(image)
+
+def __log10Image(image):
+    proc = sitk.Log10ImageFilter()
+    return proc.Execute(image)
+
+def __orImage(image1, image2):
+    proc = sitk.OrImageFilter()
+    return proc.Execute(image1, image2)
+
+def __addImage(image1, image2):
+    proc = sitk.AddImageFilter()
+    return proc.Execute(image1, image2)
+
 def __convertImage2rgbd(image):
     size = image.GetSize()
     rgbd = np.zeros(4*size[0]*size[1])
     ind = 0
+    # image = __normalizeImage(image)
     for y in range(size[1]):
         for x in range(size[0]):
             val = image[x, y]
@@ -53,19 +73,29 @@ def __convertImage2rgbd(image):
 
     return rgbd
 
-# def __normalizeImage(image):
-#     proc = sitk.MinimumMaximumImageFilter()
-#     proc.Execute(image)
-#     vmax = proc.GetMaximum()
-#     vmin = proc.GetMinimum()
+def __normalizeImage(image):
+    proc = sitk.MinimumMaximumImageFilter()
+    proc.Execute(image)
+    vmax = proc.GetMaximum()
+    vmin = proc.GetMinimum()
 
-#     return (image-vmin) / (vmax-vmin)
+    return (image-vmin) / (vmax-vmin)
 
-def __threshImage(image, up, out):
+def __printStatImage(image):
+    proc = sitk.MinimumMaximumImageFilter()
+    proc.Execute(image)
+    vmax = proc.GetMaximum()
+    vmin = proc.GetMinimum()
+    print("vmin", vmin, "vmax", vmax)
+
+def __threshImage(image, up, low, out):
     proc = sitk.ThresholdImageFilter()
     proc.SetUpper(up)
+    proc.SetLower(low)
     proc.SetOutsideValue(out)
+    proc.tre
     return proc.Execute(image)
+
 
 # Get front and left image of the assembled phantom at rest pose
 def getPhantomImageAtRestPose(bodyFilename, bodyPartFilenames):
@@ -114,3 +144,46 @@ def getPhantomImageAtRestPose(bodyFilename, bodyPartFilenames):
     lImageSide[0] = __threshImage(lImageSide[0], up=1, out=1)
 
     return __convertImage2rgbd(lImageFront[0]), lImageFront[0].GetSize(), __convertImage2rgbd(lImageSide[0]), lImageSide[0].GetSize()
+
+# Get front and left image of the assembled phantom at rest pose
+def _getPhantomImageAtRestPose(bodyFilename, bodyPartFilenames):
+    
+    # Read the main volume
+    lImageBodyPart = []
+    lImageBodyPart.append(sitk.ReadImage(bodyFilename, imageIO='MetaImageIO'))
+
+    # Read the others body part
+    for name in bodyPartFilenames:
+        lImageBodyPart.append(sitk.ReadImage(name, imageIO='MetaImageIO'))
+
+    # Then assembled each piece in the main image (body)
+    for i in range(1, len(lImageBodyPart)):
+        Offset = lImageBodyPart[i].GetOrigin()
+        Size = lImageBodyPart[i].GetSize()
+        Offset = list(map(int, Offset))
+        Size = list(map(int, Size))
+
+        lImageBodyPart[0][Offset[0]:Offset[0]+Size[0],
+                          Offset[1]:Offset[1]+Size[1], 
+                          Offset[2]:Offset[2]+Size[2]] = lImageBodyPart[i][:, :, :]
+
+    # Processing to get 2D image
+    bone1 = __binImage(lImageBodyPart[0], low=6, up=6)
+    bone2 = __binImage(lImageBodyPart[0], low=9, up=9)
+    bone3 = __binImage(lImageBodyPart[0], low=15, up=15)
+    skin = __binImage(lImageBodyPart[0], low=1, up=40)
+    
+    bone1 = __orImage(bone1, bone2)
+    bone1 = __orImage(bone1, bone3)
+
+    skin = __floatImage(skin)
+    bone1 = __floatImage(bone1) * 2  # for highlight bones
+    body = __addImage(skin, bone1)
+    
+    frontImage = __meipImage(body, axis=1)
+    frontImage = frontImage[:, 0, :]
+
+    sideImage = __meipImage(body, axis=0)
+    sideImage = sideImage[0, :, :]
+    
+    return __convertImage2rgbd(frontImage), frontImage.GetSize(), __convertImage2rgbd(sideImage), sideImage.GetSize()
