@@ -1,6 +1,8 @@
 import dearpygui.dearpygui as dpg
+from matplotlib.pyplot import show
 import numpy as np
 import tools, rigging, improc
+import sys
 
 class MainApp():
     def __init__(self):
@@ -39,21 +41,50 @@ class MainApp():
         dpg.setup_dearpygui()
         dpg.show_viewport()
 
-        ## Load images from data
-        dataFront, sizeFront, dataSide, sizeSide = improc._getPhantomImageAtRestPose('../data/mash_body.mhd',
-                                                                                    ['../data/mash_left_arm.mhd', '../data/mash_left_forearm.mhd',
-                                                                                    '../data/mash_right_arm.mhd', '../data/mash_right_forearm.mhd'])
+        ## Everything is express in 3D image phantom space
+
+        ## Build the right arm
+        bonesControlPoints = np.array([[0, 156, 166, 179],    # x
+                                       [0,  54,  53,  52],    # y
+                                       [0, 118, 197, 268]])   # z
+        bonesNames = ('org', 'rightArm', 'rightForearm')
+        bonesColors = (self.PBlue, self.PGreen, self.PYellow)
+
+        self.rightArm = rigging.Skeleton()
+        self.rightArm.addSerialBones(bonesControlPoints, bonesNames, bonesColors)
+
+        ## Load the corresponding 3D image of the arm
+        bodyPartFilenames = ['../data/mash_body.mhd', '../data/mash_right_arm.mhd', '../data/mash_right_forearm.mhd']
+        # ,                             '../data/mash_right_arm.mhd', '../data/mash_right_forearm.mhd']
+        self.lImageBodyPart = improc.getImagesFromFilenames(bodyPartFilenames)
+
+        improc.updateImageOrgWithBonesOrg(self.lImageBodyPart, bonesControlPoints)
+
+        ## Prepare for viewing image
+        Nx, Ny, Nz = self.lImageBodyPart[0].GetSize()
+        print(Nx, Ny, Nz)
+        print(self.frameHeight)
         
-        width, height = sizeFront
-        self.imagePhanFrontPosMin, self.imagePhanFrontPosMax = tools.getCenteredImage(width, height, self.frameWidth, self.frameHeight)
-        with dpg.texture_registry():
-            dpg.add_static_texture(width, height, dataFront, tag='image_phan_front')
+        self.imagePhanFrontWidth, self.imagePhanFrontHeight = Nx, Nz
+        self.imagePhanSideWidth, self.imagePhanSideHeight = Ny, Nz
 
-        width, height = sizeSide
-        self.imagePhanSidePosMin, self.imagePhanSidePosMax = tools.getCenteredImage(width, height, self.frameWidth, self.frameHeight)
-        with dpg.texture_registry():
-            dpg.add_static_texture(width, height, dataSide, tag='image_phan_side')
+        self.imagePhanFrontPosMin, self.imagePhanFrontPosMax = tools.getCenteredImage(self.imagePhanFrontWidth, self.imagePhanFrontHeight, self.frameWidth, self.frameHeight)
+        self.imagePhanSidePosMin, self.imagePhanSidePosMax = tools.getCenteredImage(self.imagePhanSideWidth, self.imagePhanSideHeight, self.frameWidth, self.frameHeight)
 
+        ### ==>>
+
+        # ## Then get 2D projection image into texture for displaying
+        # dataFront, sizeFront, dataSide, sizeSide = improc.getPhantomImageAtPose(self.rightArm, self.lImageBodyPart)
+
+        # dataFront, sizeFront, dataSide, sizeSide = improc.getPhantomImageAtRestPose(self.lImageBodyPart)
+                
+        # with dpg.texture_registry():
+        #     dpg.add_dynamic_texture(self.imagePhanFrontWidth, self.imagePhanFrontHeight, dataFront, tag='image_phan_front')
+
+        # with dpg.texture_registry():
+        #     dpg.add_dynamic_texture(self.imagePhanSideWidth, self.imagePhanSideHeight, dataSide, tag='image_phan_side')
+
+ 
         # # Test
         # with dpg.handler_registry():
         #     dpg.add_mouse_click_handler(callback=self.toto)
@@ -70,18 +101,6 @@ class MainApp():
 
     # #     self.buildArms()
 
-    def buildArms(self):
-
-        bonesControlPoints = np.array([[0, 180, 165, 140, 135],
-                                       [0, 215, 360, 490, 580],
-                                       [0, 295, 290, 290, 285]])
-        bonesNames = ('org', 'rightArm', 'rightForearm', 'rightHand')
-        bonesColors = (self.PBlue, self.PGreen, self.PYellow, self.PGold)
-
-        rightArm = rigging.Skeleton()
-        rightArm.addSerialBones(bonesControlPoints, bonesNames, bonesColors)
-        return rightArm
-
     def drawSkeleton(self, skel):
         
         try:
@@ -96,7 +115,8 @@ class MainApp():
             for i in range(nBones):
                 aBone = skel.getBone(i)
 
-                allLines = aBone.getDrawLinesInXYPlane()
+                allLines = aBone.getDrawLinesInFrontViewSpace(self.imagePhanFrontPosMin[0], self.imagePhanFrontPosMin[1], self.imagePhanFrontWidth, self.imagePhanFrontHeight)
+                
                 for aLine in allLines:
                     dpg.draw_line(aLine[0], aLine[1], color=aBone.getDrawColor(), thickness=2)
 
@@ -137,21 +157,26 @@ class MainApp():
         self.rightArm.setBoneOrientationRz(1, np.pi*app_data/180.0)
         self.drawSkeleton(self.rightArm)
 
-    def callBackSliderRotXHandRight(self, sender, app_data):
-        self.rightArm.setBoneOrientationRx(2, np.pi*app_data/180.0)
-        self.drawSkeleton(self.rightArm)
+    # def callBackSliderRotXHandRight(self, sender, app_data):
+    #     self.rightArm.setBoneOrientationRx(2, np.pi*app_data/180.0)
+    #     self.drawSkeleton(self.rightArm)
 
-    def callBackSliderRotZHandRight(self, sender, app_data):
-        self.rightArm.setBoneOrientationRz(2, np.pi*app_data/180.0)
-        self.drawSkeleton(self.rightArm)
+    # def callBackSliderRotZHandRight(self, sender, app_data):
+    #     self.rightArm.setBoneOrientationRz(2, np.pi*app_data/180.0)
+    #     self.drawSkeleton(self.rightArm)
+
+    def callBackShowRightBones(self, sender, app_data):
+        flag = dpg.get_value(sender)
+        dpg.configure_item('bonesLayerLeftView', show=flag)
+        dpg.configure_item('bonesLayerRightView', show=flag)
 
     def callBackResetRightArm(self, sender, app_data):
         dpg.configure_item('sliderRotXArmRight', default_value=0)
         dpg.configure_item('sliderRotZArmRight', default_value=0)
         dpg.configure_item('sliderRotXForearmRight', default_value=0)
         dpg.configure_item('sliderRotZForearmRight', default_value=0)
-        dpg.configure_item('sliderRotXHandRight', default_value=0)
-        dpg.configure_item('sliderRotZHandRight', default_value=0)
+        # dpg.configure_item('sliderRotXHandRight', default_value=0)
+        # dpg.configure_item('sliderRotZHandRight', default_value=0)
 
         for i in range(self.rightArm.nbBones):
             self.rightArm.setBoneOrientationRx(i, 0.0)
@@ -160,11 +185,10 @@ class MainApp():
         self.drawSkeleton(self.rightArm)
 
     def callBackUpdateSkin(self):
-        pass
-        # improc.getPhantomImageAtRestPose('../data/mash_body.mhd',
-        #                                  ['../data/mash_left_arm.mhd', '../data/mash_left_forearm.mhd',
-        #                                   '../data/mash_right_arm.mhd', '../data/mash_right_forearm.mhd'])
-        
+        ## get 2D projection image into texture for displaying
+        dataFront, sizeFront, dataSide, sizeSide = improc.getPhantomImageAtPose(self.rightArm, self.lImageBodyPart) 
+        dpg.set_value('image_phan_front', dataFront)
+        dpg.set_value('image_phan_side', dataSide)
 
     # Start Main app
     def start(self):
@@ -188,37 +212,39 @@ class MainApp():
                                        callback=self.callBackSliderRotXForearmRight, tag='sliderRotXForearmRight')
                     dpg.add_slider_int(label='Rot Z', default_value=0, min_value=-90, max_value=90,
                                        callback=self.callBackSliderRotZForearmRight, tag='sliderRotZForearmRight')
-                    dpg.add_text('RIGHT Hand', color=self.PGold)
-                    dpg.add_slider_int(label='Rot X', default_value=0, min_value=-90, max_value=90,
-                                       callback=self.callBackSliderRotXHandRight, tag='sliderRotXHandRight')
-                    dpg.add_slider_int(label='Rot Z', default_value=0, min_value=-90, max_value=90,
-                                       callback=self.callBackSliderRotZHandRight, tag='sliderRotZHandRight')
+                    # dpg.add_text('RIGHT Hand', color=self.PGold)
+                    # dpg.add_slider_int(label='Rot X', default_value=0, min_value=-90, max_value=90,
+                    #                    callback=self.callBackSliderRotXHandRight, tag='sliderRotXHandRight')
+                    # dpg.add_slider_int(label='Rot Z', default_value=0, min_value=-90, max_value=90,
+                    #                    callback=self.callBackSliderRotZHandRight, tag='sliderRotZHandRight')
+
+                    dpg.add_checkbox(label="Show bones", default_value=True, callback=self.callBackShowRightBones, tag='checkShowRightBones')
 
                     dpg.add_button(label='RESET', small=True, callback=self.callBackResetRightArm)
                     
                     dpg.add_button(label='UPDATE SKIN', small=True, callback=self.callBackUpdateSkin)
 
                 with dpg.drawlist(tag='leftView', width=self.frameWidth, height=self.frameHeight):
-                    dpg.draw_image('image_phan_front', 
-                                    pmin=self.imagePhanFrontPosMin, 
-                                    pmax=self.imagePhanFrontPosMax,
-                                    uv_min=(0, 0),
-                                    uv_max=(1, 1))
+                    # dpg.draw_image('image_phan_front', 
+                    #                 pmin=self.imagePhanFrontPosMin, 
+                    #                 pmax=self.imagePhanFrontPosMax,
+                    #                 uv_min=(0, 0),
+                    #                 uv_max=(1, 1))
                     dpg.draw_polygon(points=[(0, 0), (self.frameWidth, 0), (self.frameWidth, self.frameHeight), 
                                      (0, self.frameHeight), (0, 0)], color=(255, 255, 255, 255))
                 
                 with dpg.drawlist(tag='rightView', width=self.frameWidth, height=self.frameHeight):
-                    dpg.draw_image('image_phan_side', 
-                                    pmin=self.imagePhanSidePosMin, 
-                                    pmax=self.imagePhanSidePosMax,
-                                    uv_min=(0, 0),
-                                    uv_max=(1, 1))         
+                    # dpg.draw_image('image_phan_side', 
+                    #                 pmin=self.imagePhanSidePosMin, 
+                    #                 pmax=self.imagePhanSidePosMax,
+                    #                 uv_min=(0, 0),
+                    #                 uv_max=(1, 1))         
                     dpg.draw_polygon(points=[(0, 0), (self.frameWidth, 0), (self.frameWidth, self.frameHeight), 
                                      (0, self.frameHeight), (0, 0)], color=(255, 255, 255, 255))
 
         
         # draw
-        self.rightArm = self.buildArms()
+        
         self.drawSkeleton(self.rightArm)
 
         dpg.start_dearpygui()

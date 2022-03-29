@@ -5,10 +5,10 @@ class Bone():
         
         # Control points
         #                          z
-        #       + p0             /
+        #       + p1             /
         #      /                +--- x
         #     /                 |
-        #    + p1               y
+        #    + p0               y
         #
         #
         # Diamond drawing
@@ -133,6 +133,26 @@ class Bone():
         self.mGlobalTransformation = mTransformation.copy()
         self.mPoseVertex = self.mGlobalTransformation * self.mRestPoseVertex
 
+    def getDrawLinesInFrontViewSpace(self, imOrgX, imOrgY, imSizeX, imSizeY):
+        # X -> mirror(X)
+        # Y -> Z
+        
+        allLines = []
+        for i in range(len(self.aDrawEdges)):
+            iP1 = self.aDrawEdges[i][0]
+            iP2 = self.aDrawEdges[i][1]
+
+            P1 = ((imSizeX-self.mPoseVertex[0, iP1]) + imOrgX, self.mPoseVertex[2, iP1] + imOrgY)
+            P2 = ((imSizeX-self.mPoseVertex[0, iP2]) + imOrgX, self.mPoseVertex[2, iP2] + imOrgY)
+            
+            aLine = (P1, P2)
+            # print(aLine)
+            allLines.append(aLine)
+
+
+        return allLines
+
+    
     def getDrawLinesInXYPlane(self):
 
         allLines = []
@@ -149,13 +169,35 @@ class Bone():
 
     def getDrawLinesInYZPlane(self):
 
+        # X -> Y
+        # Y -> Z
+        # Z -> X
+
         allLines = []
         for i in range(len(self.aDrawEdges)):
             iP1 = self.aDrawEdges[i][0]
             iP2 = self.aDrawEdges[i][1]
-            #                      Z                         Y                         X
-            P1 = (self.mPoseVertex[2, iP1], self.mPoseVertex[1, iP1], self.mPoseVertex[0, iP1])
-            P2 = (self.mPoseVertex[2, iP2], self.mPoseVertex[1, iP2], self.mPoseVertex[0, iP2])
+            #                      Y                         Z                         X
+            P1 = (self.mPoseVertex[1, iP1], self.mPoseVertex[2, iP1], self.mPoseVertex[0, iP1])
+            P2 = (self.mPoseVertex[1, iP2], self.mPoseVertex[2, iP2], self.mPoseVertex[0, iP2])
+            aLine = (P1, P2)
+            allLines.append(aLine)
+
+        return allLines
+
+    def getDrawLinesInXZPlane(self):
+
+        # X -> X
+        # Y -> Z
+        # Z -> Y
+
+        allLines = []
+        for i in range(len(self.aDrawEdges)):
+            iP1 = self.aDrawEdges[i][0]
+            iP2 = self.aDrawEdges[i][1]
+            #                      X                         Z                         Y
+            P1 = (self.mPoseVertex[0, iP1], self.mPoseVertex[2, iP1], self.mPoseVertex[1, iP1])
+            P2 = (self.mPoseVertex[0, iP2], self.mPoseVertex[2, iP2], self.mPoseVertex[1, iP2])
             aLine = (P1, P2)
             allLines.append(aLine)
 

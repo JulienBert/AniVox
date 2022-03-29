@@ -1,3 +1,5 @@
+from bdb import Breakpoint
+from os import abort
 import SimpleITK as sitk
 from matplotlib.pyplot import bone
 import numpy as np
@@ -96,82 +98,12 @@ def __threshImage(image, up, low, out):
     proc.tre
     return proc.Execute(image)
 
-
-# Get front and left image of the assembled phantom at rest pose
-def getPhantomImageAtRestPose(bodyFilename, bodyPartFilenames):
-    
-    # Read the main volume
-    lImageBodyPart = []
-    lImageBodyPart.append(sitk.ReadImage(bodyFilename, imageIO='MetaImageIO'))
-
-    # Read the others body part
-    for name in bodyPartFilenames:
-        lImageBodyPart.append(sitk.ReadImage(name, imageIO='MetaImageIO'))
-
-    # Proc the image to get contour
-
-    lImageFront = []
-    lImageSide = []
-    for i in range(len(lImageBodyPart)):
-        lImageBodyPart[i] = __binImage(lImageBodyPart[i])
-        lImageBodyPart[i] = __floatImage(lImageBodyPart[i])
-
-        frontImage = __mipImage(lImageBodyPart[i], axis=1)
-        frontImage = __sobelImage(frontImage)
-        frontImage = frontImage[:, 0, :]
-        lImageFront.append(frontImage)
-
-        sideImage = __mipImage(lImageBodyPart[i], axis=0)
-        sideImage = __sobelImage(sideImage)
-        sideImage = sideImage[0, :, :]
-        lImageSide.append(sideImage)
-
-    # Then assembled each piece in the main image (body)
-    for i in range(1, len(lImageBodyPart)):
-        Offset = lImageBodyPart[i].GetOrigin()
-        Size = lImageBodyPart[i].GetSize()
-        Offset = list(map(int, Offset))
-        Size = list(map(int, Size))
-
-        # front view (XZ)
-        lImageFront[0][Offset[0]:Offset[0]+Size[0], 
-                       Offset[2]:Offset[2]+Size[2]] += lImageFront[i][:, :]
-        # side view (YZ)
-        lImageSide[0][Offset[1]:Offset[1]+Size[1],
-                      Offset[2]:Offset[2]+Size[2]] += lImageSide[i][:, :]
-
-    lImageFront[0] = __threshImage(lImageFront[0], up=1, out=1)
-    lImageSide[0] = __threshImage(lImageSide[0], up=1, out=1)
-
-    return __convertImage2rgbd(lImageFront[0]), lImageFront[0].GetSize(), __convertImage2rgbd(lImageSide[0]), lImageSide[0].GetSize()
-
-# Get front and left image of the assembled phantom at rest pose
-def _getPhantomImageAtRestPose(bodyFilename, bodyPartFilenames):
-    
-    # Read the main volume
-    lImageBodyPart = []
-    lImageBodyPart.append(sitk.ReadImage(bodyFilename, imageIO='MetaImageIO'))
-
-    # Read the others body part
-    for name in bodyPartFilenames:
-        lImageBodyPart.append(sitk.ReadImage(name, imageIO='MetaImageIO'))
-
-    # Then assembled each piece in the main image (body)
-    for i in range(1, len(lImageBodyPart)):
-        Offset = lImageBodyPart[i].GetOrigin()
-        Size = lImageBodyPart[i].GetSize()
-        Offset = list(map(int, Offset))
-        Size = list(map(int, Size))
-
-        lImageBodyPart[0][Offset[0]:Offset[0]+Size[0],
-                          Offset[1]:Offset[1]+Size[1], 
-                          Offset[2]:Offset[2]+Size[2]] = lImageBodyPart[i][:, :, :]
-
+def __getProj2DImage(ImageBody):
     # Processing to get 2D image
-    bone1 = __binImage(lImageBodyPart[0], low=6, up=6)
-    bone2 = __binImage(lImageBodyPart[0], low=9, up=9)
-    bone3 = __binImage(lImageBodyPart[0], low=15, up=15)
-    skin = __binImage(lImageBodyPart[0], low=1, up=40)
+    bone1 = __binImage(ImageBody, low=6, up=6)
+    bone2 = __binImage(ImageBody, low=9, up=9)
+    bone3 = __binImage(ImageBody, low=15, up=15)
+    skin = __binImage(ImageBody, low=1, up=40)
     
     bone1 = __orImage(bone1, bone2)
     bone1 = __orImage(bone1, bone3)
@@ -187,3 +119,107 @@ def _getPhantomImageAtRestPose(bodyFilename, bodyPartFilenames):
     sideImage = sideImage[0, :, :]
     
     return __convertImage2rgbd(frontImage), frontImage.GetSize(), __convertImage2rgbd(sideImage), sideImage.GetSize()
+
+
+def getImagesFromFilenames(Filenames):
+    listImages = []
+    for name in Filenames:
+        listImages.append(sitk.ReadImage(name, imageIO='MetaImageIO'))
+    return listImages
+
+# Define the bone origin within the image of each body part
+def updateImageOrgWithBonesOrg(lImageBodyPart, bonesControlPoints):
+
+    for i in range(1, len(lImageBodyPart)):
+        imOrg = lImageBodyPart[i].GetOrigin()
+
+        newXOrg = bonesControlPoints[0, i] - imOrg[0]
+        newYOrg = bonesControlPoints[1, i] - imOrg[1]
+        newZOrg = bonesControlPoints[2, i] - imOrg[2]
+
+        newOrg = (newXOrg, newYOrg, newZOrg)
+        print('imorg', imOrg, 'new', newOrg)
+
+        lImageBodyPart[i].SetOrigin(newOrg)
+
+# Get front and left image of the assembled phantom at a given pose
+def getPhantomImageAtPose(rightArm, lImageBodyPart):
+    body = lImageBodyPart[0]
+
+    # Then assembled each piece in the main image (body)
+    for i in range(1, len(lImageBodyPart)):
+        # Get image info
+        Org = lImageBodyPart[i].GetOrigin()
+        Size = lImageBodyPart[i].GetSize()
+
+        # Get bone and global transformation
+        Bone = rightArm.getBone(i-1)
+        gblT = Bone.getGlobalTransformation()
+
+        # for each voxel
+        for iz in range(0, Size[2], 1):
+            for iy in range(0, Size[1], 1):
+                for ix in range(0, Size[0], 1):
+
+                    print(ix, iy, iz)
+
+                    # express index voxel in bone org
+                    p = np.matrix([[ix+Org[0]], 
+                                   [iy+Org[1]],
+                                   [iz+Org[2]],
+                                   [1.0]])
+
+                    # p = np.matrix([[ix], 
+                    #                [iy],
+                    #                [iz],
+                    #                [1.0]])
+
+                    print(p)
+
+                    # r = np.matrix([[1, 0,  0, 0],
+                    #                [0, 0, -1, 0],
+                    #                [0, 1,  0, 0],
+                    #                [0, 0,  0, 1]])
+                    
+                    # p = r*p
+
+                    print(gblT)
+
+                    # apply global transformation
+                    q = gblT*p
+
+                    print(q)
+                    print(body.GetSize())
+
+                    q0 = int(q[0, 0])
+                    q1 = int(q[1, 0])
+                    q2 = int(q[2, 0])
+
+                    body[q0, q1, q2] = lImageBodyPart[i][ix, iy, iz]
+
+                    break
+                break
+            break
+
+
+        print(i)
+        break
+        
+                    
+    return __getProj2DImage(body)
+
+# Get front and left image of the assembled phantom at rest pose
+def getPhantomImageAtRestPose(lImageBodyPart):
+
+    # Then assembled each piece in the main image (body)
+    for i in range(1, len(lImageBodyPart)):
+        Offset = lImageBodyPart[i].GetOrigin()
+        Size = lImageBodyPart[i].GetSize()
+        Offset = list(map(int, Offset))
+        Size = list(map(int, Size))
+
+        lImageBodyPart[0][Offset[0]:Offset[0]+Size[0],
+                          Offset[1]:Offset[1]+Size[1], 
+                          Offset[2]:Offset[2]+Size[2]] = lImageBodyPart[i][:, :, :]
+
+    return __getProj2DImage(lImageBodyPart)
