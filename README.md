@@ -15,8 +15,9 @@ Fast animated voxelized phantom for Monte Carlo simulation
 * pip 22.0.4
 * dearpygui 1.4.0
 * screeninfo 0.8
-* numpy 1.22.3
+* numpy 1.21.5
 * simpleitk 2.1.1
+* numba 0.55.1
 
 ### Installation
 

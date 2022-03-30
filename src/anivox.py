@@ -1,8 +1,6 @@
 import dearpygui.dearpygui as dpg
-from matplotlib.pyplot import show
 import numpy as np
 import tools, rigging, improc
-import sys
 
 class MainApp():
     def __init__(self):
@@ -61,7 +59,7 @@ class MainApp():
         improc.updateImageOrgWithBonesOrg(self.lImageBodyPart, bonesControlPoints)
 
         ## Prepare for viewing image
-        Nx, Ny, Nz = self.lImageBodyPart[0].GetSize()
+        Nx, Ny, Nz = self.lImageBodyPart[0].GetSize()      # TODO not use the image phantom but the one that will contains the pose phantom
         
         self.imagePhanFrontWidth, self.imagePhanFrontHeight = Nx, Nz
         self.imagePhanSideWidth, self.imagePhanSideHeight = Ny, Nz

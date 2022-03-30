@@ -1,8 +1,33 @@
-from bdb import Breakpoint
-from os import abort
 import SimpleITK as sitk
-from matplotlib.pyplot import bone
 import numpy as np
+from numba import jit
+import sys
+
+@jit(nopython=True)
+def __core_PoseTransform(nx, ny, nz, aOrg, aGblT, aBody, aImageBodyPart):
+    # for each voxel
+    for iz in range(0, nz):
+        for iy in range(0, ny):
+            for ix in range(0, nx):
+
+                # express index voxel in bone org
+                px = ix-aOrg[0]
+                py = iy-aOrg[1]
+                pz = iz-aOrg[2]
+                pw = 1
+
+                # apply global transformation
+                qx = aGblT[0, 0]*px + aGblT[0, 1]*py + aGblT[0, 2]*pz + aGblT[0, 3]*pw
+                qy = aGblT[1, 0]*px + aGblT[1, 1]*py + aGblT[1, 2]*pz + aGblT[1, 3]*pw
+                qz = aGblT[2, 0]*px + aGblT[2, 1]*py + aGblT[2, 2]*pz + aGblT[2, 3]*pw
+
+                qx = int(qx)
+                qy = int(qy)
+                qz = int(qz)
+
+                aBody[qz, qy, qx] = aImageBodyPart[iz, iy, ix]
+
+    return aBody
 
 def __exportProjPNG(image, axis):
     aRes = sitk.GetArrayViewFromImage(image)
@@ -118,7 +143,7 @@ def __getProj2DImage(ImageBody):
     bone1 = __orImage(bone1, bone3)
 
     skin = __floatImage(skin)
-    bone1 = __floatImage(bone1) * 2  # for highlight bones
+    bone1 = __floatImage(bone1) * 4  # for highlight bones
     body = __addImage(skin, bone1)
     
     frontImage = __meipImage(body, axis=1)
@@ -156,6 +181,7 @@ def getPhantomImageAtPose(rightArm, lImageBodyPart):
     # force a copy
     body = sitk.Image(lImageBodyPart[0].GetSize(), lImageBodyPart[0].GetPixelIDValue())
     body[:, :, :] = lImageBodyPart[0][:, :, :]
+    aBody = sitk.GetArrayFromImage(body)
 
     # __printStatImage(body)
 
@@ -168,27 +194,13 @@ def getPhantomImageAtPose(rightArm, lImageBodyPart):
         # Get bone and global transformation
         Bone = rightArm.getBone(i-1)
         gblT = Bone.getGlobalTransformation()
-
-        # for each voxel
-        for iz in range(0, Size[2], 1):
-            for iy in range(0, Size[1], 1):
-                for ix in range(0, Size[0], 1):
-
-                    # express index voxel in bone org
-                    p = np.matrix([[ix-Org[0]], 
-                                   [iy-Org[1]],
-                                   [iz-Org[2]],
-                                   [1.0]])
-
-                    # apply global transformation
-                    q = gblT*p
-
-                    q0 = int(q[0, 0])
-                    q1 = int(q[1, 0])
-                    q2 = int(q[2, 0])
-
-                    body[q0, q1, q2] = lImageBodyPart[i][ix, iy, iz]
-
+        aOrg = np.array(Org)
+        aGblT = gblT.A
+        aImageBodyPart = sitk.GetArrayFromImage(lImageBodyPart[i])
+        
+        aBody = __core_PoseTransform(Size[0], Size[1], Size[2], aOrg, aGblT, aBody, aImageBodyPart)
+        
+    body = sitk.GetImageFromArray(aBody)
     return __getProj2DImage(body)
 
 # Get front and left image of the assembled phantom at rest pose
