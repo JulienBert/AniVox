@@ -45,7 +45,7 @@ class MainApp():
 
         ## Build the right arm
         bonesControlPoints = np.array([[0, 156, 166, 179],    # x
-                                       [0,  54,  53,  52],    # y
+                                       [0, 54,  53,  52],    # y
                                        [0, 118, 197, 268]])   # z
         bonesNames = ('org', 'rightArm', 'rightForearm')
         bonesColors = (self.PBlue, self.PGreen, self.PYellow)
@@ -62,37 +62,39 @@ class MainApp():
 
         ## Prepare for viewing image
         Nx, Ny, Nz = self.lImageBodyPart[0].GetSize()
-        print(Nx, Ny, Nz)
-        print(self.frameHeight)
         
         self.imagePhanFrontWidth, self.imagePhanFrontHeight = Nx, Nz
         self.imagePhanSideWidth, self.imagePhanSideHeight = Ny, Nz
 
-        self.imagePhanFrontPosMin, self.imagePhanFrontPosMax = tools.getCenteredImage(self.imagePhanFrontWidth, self.imagePhanFrontHeight, self.frameWidth, self.frameHeight)
-        self.imagePhanSidePosMin, self.imagePhanSidePosMax = tools.getCenteredImage(self.imagePhanSideWidth, self.imagePhanSideHeight, self.frameWidth, self.frameHeight)
+        frontPMin, frontPMax, frontScaleW, frontScaleH = tools.getCenteredImage(self.imagePhanFrontWidth, self.imagePhanFrontHeight, self.frameWidth, self.frameHeight)
+        self.imagePhanFrontPosMin = frontPMin
+        self.imagePhanFrontPosMax = frontPMax
+        self.imagePhanFrontScaleWidth = frontScaleW
+        self.imagePhanFrontScaleHeight = frontScaleH
+        
+        sidePMin, sidePMax, sideScaleW, sideScaleH = tools.getCenteredImage(self.imagePhanSideWidth, self.imagePhanSideHeight, self.frameWidth, self.frameHeight)
+        self.imagePhanSidePosMin = sidePMin
+        self.imagePhanSidePosMax = sidePMax
+        self.imagePhanSideScaleWidth = sideScaleW
+        self.imagePhanSideScaleHeight = sideScaleH
 
-        ### ==>>
+        ## Then get 2D projection image into texture for displaying
+        dataFront, sizeFront, dataSide, sizeSide = improc.getPhantomImageAtPose(self.rightArm, self.lImageBodyPart)
 
-        # ## Then get 2D projection image into texture for displaying
-        # dataFront, sizeFront, dataSide, sizeSide = improc.getPhantomImageAtPose(self.rightArm, self.lImageBodyPart)
+        with dpg.texture_registry():
+            dpg.add_dynamic_texture(self.imagePhanFrontWidth, self.imagePhanFrontHeight, dataFront, tag='image_phan_front')
 
-        # dataFront, sizeFront, dataSide, sizeSide = improc.getPhantomImageAtRestPose(self.lImageBodyPart)
-                
-        # with dpg.texture_registry():
-        #     dpg.add_dynamic_texture(self.imagePhanFrontWidth, self.imagePhanFrontHeight, dataFront, tag='image_phan_front')
-
-        # with dpg.texture_registry():
-        #     dpg.add_dynamic_texture(self.imagePhanSideWidth, self.imagePhanSideHeight, dataSide, tag='image_phan_side')
-
+        with dpg.texture_registry():
+            dpg.add_dynamic_texture(self.imagePhanSideWidth, self.imagePhanSideHeight, dataSide, tag='image_phan_side')
  
-        # # Test
-        # with dpg.handler_registry():
-        #     dpg.add_mouse_click_handler(callback=self.toto)
+    #     # Test
+    #     with dpg.handler_registry():
+    #         dpg.add_mouse_click_handler(callback=self.toto)
         
 
     # def toto(self, sender, app_data):
     #     x, y = dpg.get_mouse_pos(local=False)
-    #     px, py = dpg.get_item_rect_min('rightView')
+    #     px, py = dpg.get_item_rect_min('leftView')
     #     print(x-px, y-py)
     #     # print(x, y)
     #     # print(px, py)
@@ -115,7 +117,12 @@ class MainApp():
             for i in range(nBones):
                 aBone = skel.getBone(i)
 
-                allLines = aBone.getDrawLinesInFrontViewSpace(self.imagePhanFrontPosMin[0], self.imagePhanFrontPosMin[1], self.imagePhanFrontWidth, self.imagePhanFrontHeight)
+                allLines = aBone.getDrawLinesInFrontViewSpace(self.imagePhanFrontPosMin[0], 
+                                                              self.imagePhanFrontPosMin[1], 
+                                                              self.imagePhanFrontWidth, 
+                                                              self.imagePhanFrontHeight,
+                                                              self.imagePhanFrontScaleWidth,
+                                                              self.imagePhanFrontScaleHeight)
                 
                 for aLine in allLines:
                     dpg.draw_line(aLine[0], aLine[1], color=aBone.getDrawColor(), thickness=2)
@@ -132,7 +139,13 @@ class MainApp():
             for i in range(nBones):
                 aBone = skel.getBone(i)
 
-                allLines = aBone.getDrawLinesInYZPlane()
+                allLines = aBone.getDrawLinesInSideViewSpace(self.imagePhanSidePosMin[0], 
+                                                             self.imagePhanSidePosMin[1], 
+                                                             self.imagePhanSideWidth, 
+                                                             self.imagePhanSideHeight,
+                                                             self.imagePhanSideScaleWidth,
+                                                             self.imagePhanSideScaleHeight)
+
                 for aLine in allLines:
                     dpg.draw_line(aLine[0], aLine[1], color=aBone.getDrawColor(), thickness=2)
 
@@ -141,9 +154,9 @@ class MainApp():
         self.rightArm.setBoneOrientationRx(0, np.pi*app_data/180.0)
         self.drawSkeleton(self.rightArm)
 
-    # def callBackSliderRotYArmRight(self, sender, app_data):
-    #     self.rightArm.setBoneOrientationRy(0, np.pi*app_data/180.0)
-    #     self.drawSkeleton(self.rightArm)
+    def callBackSliderRotYArmRight(self, sender, app_data):
+        self.rightArm.setBoneOrientationRy(0, np.pi*app_data/180.0)
+        self.drawSkeleton(self.rightArm)
 
     def callBackSliderRotZArmRight(self, sender, app_data):
         self.rightArm.setBoneOrientationRz(0, np.pi*app_data/180.0)
@@ -153,9 +166,9 @@ class MainApp():
         self.rightArm.setBoneOrientationRx(1, np.pi*app_data/180.0)
         self.drawSkeleton(self.rightArm)
 
-    def callBackSliderRotZForearmRight(self, sender, app_data):
-        self.rightArm.setBoneOrientationRz(1, np.pi*app_data/180.0)
-        self.drawSkeleton(self.rightArm)
+    # def callBackSliderRotZForearmRight(self, sender, app_data):
+    #     self.rightArm.setBoneOrientationRz(1, np.pi*app_data/180.0)
+    #     self.drawSkeleton(self.rightArm)
 
     # def callBackSliderRotXHandRight(self, sender, app_data):
     #     self.rightArm.setBoneOrientationRx(2, np.pi*app_data/180.0)
@@ -172,9 +185,10 @@ class MainApp():
 
     def callBackResetRightArm(self, sender, app_data):
         dpg.configure_item('sliderRotXArmRight', default_value=0)
+        dpg.configure_item('sliderRotYArmRight', default_value=0)
         dpg.configure_item('sliderRotZArmRight', default_value=0)
         dpg.configure_item('sliderRotXForearmRight', default_value=0)
-        dpg.configure_item('sliderRotZForearmRight', default_value=0)
+        # dpg.configure_item('sliderRotZForearmRight', default_value=0)
         # dpg.configure_item('sliderRotXHandRight', default_value=0)
         # dpg.configure_item('sliderRotZHandRight', default_value=0)
 
@@ -203,15 +217,15 @@ class MainApp():
                     dpg.add_text('RIGHT Arm', color=self.PGreen)
                     dpg.add_slider_int(label='Rot X', default_value=0, min_value=-90, max_value=90,
                                        callback=self.callBackSliderRotXArmRight, tag='sliderRotXArmRight')
-                    # dpg.add_slider_int(label='Rot Y', default_value=0, min_value=-90, max_value=90,
-                    #                    callback=self.callBackSliderRotYArmRight, tag='sliderRotYArmRight')
+                    dpg.add_slider_int(label='Rot Y', default_value=0, min_value=-90, max_value=90,
+                                       callback=self.callBackSliderRotYArmRight, tag='sliderRotYArmRight')
                     dpg.add_slider_int(label='Rot Z', default_value=0, min_value=-90, max_value=90,
                                        callback=self.callBackSliderRotZArmRight, tag='sliderRotZArmRight')
                     dpg.add_text('RIGHT Forearm', color=self.PYellow)
-                    dpg.add_slider_int(label='Rot X', default_value=0, min_value=-90, max_value=90,
+                    dpg.add_slider_int(label='Rot X', default_value=0, min_value=0, max_value=150,
                                        callback=self.callBackSliderRotXForearmRight, tag='sliderRotXForearmRight')
-                    dpg.add_slider_int(label='Rot Z', default_value=0, min_value=-90, max_value=90,
-                                       callback=self.callBackSliderRotZForearmRight, tag='sliderRotZForearmRight')
+                    # dpg.add_slider_int(label='Rot Z', default_value=0, min_value=-90, max_value=90,
+                    #                    callback=self.callBackSliderRotZForearmRight, tag='sliderRotZForearmRight')
                     # dpg.add_text('RIGHT Hand', color=self.PGold)
                     # dpg.add_slider_int(label='Rot X', default_value=0, min_value=-90, max_value=90,
                     #                    callback=self.callBackSliderRotXHandRight, tag='sliderRotXHandRight')
@@ -225,20 +239,20 @@ class MainApp():
                     dpg.add_button(label='UPDATE SKIN', small=True, callback=self.callBackUpdateSkin)
 
                 with dpg.drawlist(tag='leftView', width=self.frameWidth, height=self.frameHeight):
-                    # dpg.draw_image('image_phan_front', 
-                    #                 pmin=self.imagePhanFrontPosMin, 
-                    #                 pmax=self.imagePhanFrontPosMax,
-                    #                 uv_min=(0, 0),
-                    #                 uv_max=(1, 1))
+                    dpg.draw_image('image_phan_front', 
+                                    pmin=self.imagePhanFrontPosMin, 
+                                    pmax=self.imagePhanFrontPosMax,
+                                    uv_min=(0, 0),
+                                    uv_max=(1, 1))
                     dpg.draw_polygon(points=[(0, 0), (self.frameWidth, 0), (self.frameWidth, self.frameHeight), 
                                      (0, self.frameHeight), (0, 0)], color=(255, 255, 255, 255))
                 
                 with dpg.drawlist(tag='rightView', width=self.frameWidth, height=self.frameHeight):
-                    # dpg.draw_image('image_phan_side', 
-                    #                 pmin=self.imagePhanSidePosMin, 
-                    #                 pmax=self.imagePhanSidePosMax,
-                    #                 uv_min=(0, 0),
-                    #                 uv_max=(1, 1))         
+                    dpg.draw_image('image_phan_side', 
+                                    pmin=self.imagePhanSidePosMin, 
+                                    pmax=self.imagePhanSidePosMax,
+                                    uv_min=(0, 0),
+                                    uv_max=(1, 1))         
                     dpg.draw_polygon(points=[(0, 0), (self.frameWidth, 0), (self.frameWidth, self.frameHeight), 
                                      (0, self.frameHeight), (0, 0)], color=(255, 255, 255, 255))
 

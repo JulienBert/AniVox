@@ -84,11 +84,13 @@ def __normalizeImage(image):
     return (image-vmin) / (vmax-vmin)
 
 def __printStatImage(image):
-    proc = sitk.MinimumMaximumImageFilter()
+    proc = sitk.StatisticsImageFilter()
     proc.Execute(image)
     vmax = proc.GetMaximum()
     vmin = proc.GetMinimum()
-    print("vmin", vmin, "vmax", vmax)
+    vmean = proc.GetMean()
+    vvar = proc.GetVariance()
+    print("vmin", vmin, "vmax", vmax, "vmean", vmean, "var", vvar)
 
 def __threshImage(image, up, low, out):
     proc = sitk.ThresholdImageFilter()
@@ -96,6 +98,13 @@ def __threshImage(image, up, low, out):
     proc.SetLower(low)
     proc.SetOutsideValue(out)
     proc.tre
+    return proc.Execute(image)
+
+def __flipImage(image, axis=0):
+    proc = sitk.FlipImageFilter()
+    vecAxis = [False, False, False]
+    vecAxis[axis] = True
+    proc.SetFlipAxes(vecAxis)
     return proc.Execute(image)
 
 def __getProj2DImage(ImageBody):
@@ -114,6 +123,7 @@ def __getProj2DImage(ImageBody):
     
     frontImage = __meipImage(body, axis=1)
     frontImage = frontImage[:, 0, :]
+    frontImage = __flipImage(frontImage, axis=0)
 
     sideImage = __meipImage(body, axis=0)
     sideImage = sideImage[0, :, :]
@@ -138,13 +148,16 @@ def updateImageOrgWithBonesOrg(lImageBodyPart, bonesControlPoints):
         newZOrg = bonesControlPoints[2, i] - imOrg[2]
 
         newOrg = (newXOrg, newYOrg, newZOrg)
-        print('imorg', imOrg, 'new', newOrg)
 
         lImageBodyPart[i].SetOrigin(newOrg)
 
 # Get front and left image of the assembled phantom at a given pose
 def getPhantomImageAtPose(rightArm, lImageBodyPart):
-    body = lImageBodyPart[0]
+    # force a copy
+    body = sitk.Image(lImageBodyPart[0].GetSize(), lImageBodyPart[0].GetPixelIDValue())
+    body[:, :, :] = lImageBodyPart[0][:, :, :]
+
+    # __printStatImage(body)
 
     # Then assembled each piece in the main image (body)
     for i in range(1, len(lImageBodyPart)):
@@ -161,35 +174,14 @@ def getPhantomImageAtPose(rightArm, lImageBodyPart):
             for iy in range(0, Size[1], 1):
                 for ix in range(0, Size[0], 1):
 
-                    print(ix, iy, iz)
-
                     # express index voxel in bone org
-                    p = np.matrix([[ix+Org[0]], 
-                                   [iy+Org[1]],
-                                   [iz+Org[2]],
+                    p = np.matrix([[ix-Org[0]], 
+                                   [iy-Org[1]],
+                                   [iz-Org[2]],
                                    [1.0]])
-
-                    # p = np.matrix([[ix], 
-                    #                [iy],
-                    #                [iz],
-                    #                [1.0]])
-
-                    print(p)
-
-                    # r = np.matrix([[1, 0,  0, 0],
-                    #                [0, 0, -1, 0],
-                    #                [0, 1,  0, 0],
-                    #                [0, 0,  0, 1]])
-                    
-                    # p = r*p
-
-                    print(gblT)
 
                     # apply global transformation
                     q = gblT*p
-
-                    print(q)
-                    print(body.GetSize())
 
                     q0 = int(q[0, 0])
                     q1 = int(q[1, 0])
@@ -197,15 +189,6 @@ def getPhantomImageAtPose(rightArm, lImageBodyPart):
 
                     body[q0, q1, q2] = lImageBodyPart[i][ix, iy, iz]
 
-                    break
-                break
-            break
-
-
-        print(i)
-        break
-        
-                    
     return __getProj2DImage(body)
 
 # Get front and left image of the assembled phantom at rest pose
