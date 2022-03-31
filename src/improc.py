@@ -5,6 +5,8 @@ import sys
 
 @jit(nopython=True)
 def __core_PoseTransform(nx, ny, nz, aOrg, aGblT, aBody, aImageBodyPart, ofX, ofY, ofZ):
+    NZ, NY, NX = aBody.shape
+
     # for each voxel
     for iz in range(0, nz):
         for iy in range(0, ny):
@@ -21,11 +23,22 @@ def __core_PoseTransform(nx, ny, nz, aOrg, aGblT, aBody, aImageBodyPart, ofX, of
                 qy = aGblT[1, 0]*px + aGblT[1, 1]*py + aGblT[1, 2]*pz + aGblT[1, 3]*pw
                 qz = aGblT[2, 0]*px + aGblT[2, 1]*py + aGblT[2, 2]*pz + aGblT[2, 3]*pw
 
-                qx = int(qx)
-                qy = int(qy)
-                qz = int(qz)
+                qx = int(qx+ofX)
+                qy = int(qy+ofY)
+                qz = int(qz+ofZ)
 
-                aBody[qz+ofZ, qy+ofY, qx+ofX] = aImageBodyPart[iz, iy, ix]
+                if qx < 0: qx = 0
+                if qy < 0: qy = 0
+                if qz < 0: qz = 0
+
+                if qx >= NX: qx = NX
+                if qy >= NY: qy = NY
+                if qz >= NZ: qz = NZ
+
+                val = aImageBodyPart[iz, iy, ix]
+                # if not Air material
+                if val != 0:
+                    aBody[qz, qy, qx] = aImageBodyPart[iz, iy, ix]
 
     return aBody
 
