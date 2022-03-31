@@ -6,15 +6,27 @@ def getCenteredImage(imageWidth, imageHeight, frameWidth, frameHeight):
     if ratio > 1:
         newWidth = frameWidth
         newHeight = frameWidth / ratio
-        paddingH = (frameHeight-newHeight) / 2.0
-        paddingW = 0
-        
+        # newHeight fit inside the frame height ?
+        if newHeight <= frameHeight:
+            paddingH = (frameHeight-newHeight) / 2.0
+            paddingW = 0
+        else:
+            newWidth = frameHeight * ratio
+            newHeight = frameHeight
+            paddingH = 0
+            paddingW = (frameWidth-newWidth) / 2.0
     elif ratio < 1:
         newWidth = frameHeight * ratio
         newHeight = frameHeight
-        paddingH = 0
-        paddingW = (frameWidth-newWidth) / 2.0
-        
+        # newWidth fit inside the frame width ?
+        if newWidth <= frameWidth:
+            paddingH = 0
+            paddingW = (frameWidth-newWidth) / 2.0
+        else:
+            newWidth = frameWidth
+            newHeight = frameWidth / ratio
+            paddingH = (frameHeight-newHeight) / 2.0
+            paddingW = 0 
     else:
         newWidth = frameWidth
         newHeight = frameHeight

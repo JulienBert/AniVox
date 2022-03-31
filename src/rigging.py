@@ -137,20 +137,31 @@ class Bone():
         self.mGlobalTransformation = mTransformation.copy()
         self.mPoseVertex = self.mGlobalTransformation * self.mRestPoseVertex
 
-    def getDrawLinesInFrontViewSpace(self, imOrgX, imOrgY, imSizeX, imSizeY, imScaleX, imScaleY):
+    def getDrawLinesInFrontViewSpace(self, imOrgX, imOrgY, imSizeX, imSizeY, imScaleX, imScaleY, 
+                                     bodySizeX, bodySizeY):
         # X -> mirror(X)
         # Y -> Z
         
+        # offset between the final image and the vox body phantom
+        offsetX = (imSizeX-bodySizeX) // 2
+        offsetY = (imSizeY-bodySizeY) // 2
+        # print(imSizeX, imSizeY)
+        # print(bodySizeX, bodySizeY)
+        # print(offsetX, offsetY)
+
         allLines = []
         for i in range(len(self.aDrawEdges)):
             iP1 = self.aDrawEdges[i][0]
             iP2 = self.aDrawEdges[i][1]
 
-            P1 = (imSizeX-self.mPoseVertex[0, iP1],
+            P1 = (bodySizeX-self.mPoseVertex[0, iP1],
                   self.mPoseVertex[2, iP1])
-            P2 = (imSizeX-self.mPoseVertex[0, iP2],
+            P2 = (bodySizeX-self.mPoseVertex[0, iP2],
                   self.mPoseVertex[2, iP2])
             
+            P1 = (P1[0]+offsetX, P1[1]+offsetY)
+            P2 = (P2[0]+offsetX, P2[1]+offsetY)
+
             P1 = (imScaleX*P1[0], imScaleY*P1[1])
             P2 = (imScaleX*P2[0], imScaleY*P2[1])
 
@@ -162,9 +173,13 @@ class Bone():
 
         return allLines
 
-    def getDrawLinesInSideViewSpace(self, imOrgX, imOrgY, imSizeX, imSizeY, imScaleX, imScaleY):
+    def getDrawLinesInSideViewSpace(self, imOrgX, imOrgY, imSizeX, imSizeY, imScaleX, imScaleY,
+                                    bodySizeX, bodySizeY):
         # X -> Y
         # Y -> Z
+
+        offsetX = (imSizeX-bodySizeX) // 2
+        offsetY = (imSizeY-bodySizeY) // 2
         
         allLines = []
         for i in range(len(self.aDrawEdges)):
@@ -175,6 +190,9 @@ class Bone():
                   self.mPoseVertex[2, iP1])
             P2 = (self.mPoseVertex[1, iP2],
                   self.mPoseVertex[2, iP2])
+
+            P1 = (P1[0]+offsetX, P1[1]+offsetY)
+            P2 = (P2[0]+offsetX, P2[1]+offsetY)
             
             P1 = (imScaleX*P1[0], imScaleY*P1[1])
             P2 = (imScaleX*P2[0], imScaleY*P2[1])

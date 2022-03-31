@@ -4,7 +4,7 @@ from numba import jit
 import sys
 
 @jit(nopython=True)
-def __core_PoseTransform(nx, ny, nz, aOrg, aGblT, aBody, aImageBodyPart):
+def __core_PoseTransform(nx, ny, nz, aOrg, aGblT, aBody, aImageBodyPart, ofX, ofY, ofZ):
     # for each voxel
     for iz in range(0, nz):
         for iy in range(0, ny):
@@ -25,7 +25,7 @@ def __core_PoseTransform(nx, ny, nz, aOrg, aGblT, aBody, aImageBodyPart):
                 qy = int(qy)
                 qz = int(qz)
 
-                aBody[qz, qy, qx] = aImageBodyPart[iz, iy, ix]
+                aBody[qz+ofZ, qy+ofY, qx+ofX] = aImageBodyPart[iz, iy, ix]
 
     return aBody
 
@@ -87,7 +87,10 @@ def __convertImage2rgbd(image):
     size = image.GetSize()
     rgbd = np.zeros(4*size[0]*size[1])
     ind = 0
+
+    #__printStatImage(image)
     # image = __normalizeImage(image)
+    # __printStatImage(image)
     for y in range(size[1]):
         for x in range(size[0]):
             val = image[x, y]
@@ -143,18 +146,20 @@ def __getProj2DImage(ImageBody):
     bone1 = __orImage(bone1, bone3)
 
     skin = __floatImage(skin)
-    bone1 = __floatImage(bone1) * 4  # for highlight bones
+    bone1 = __floatImage(bone1)  * 10 # highlight bones
     body = __addImage(skin, bone1)
     
     frontImage = __meipImage(body, axis=1)
-    frontImage = frontImage[:, 0, :]
+    frontImage = frontImage[:, 0, :] 
     frontImage = __flipImage(frontImage, axis=0)
 
     sideImage = __meipImage(body, axis=0)
     sideImage = sideImage[0, :, :]
-    
-    return __convertImage2rgbd(frontImage), frontImage.GetSize(), __convertImage2rgbd(sideImage), sideImage.GetSize()
 
+    frontImage = __normalizeImage(frontImage) * 4
+    sideImage = __normalizeImage(sideImage) * 4
+
+    return __convertImage2rgbd(frontImage), frontImage.GetSize(), __convertImage2rgbd(sideImage), sideImage.GetSize()
 
 def getImagesFromFilenames(Filenames):
     listImages = []
@@ -177,13 +182,18 @@ def updateImageOrgWithBonesOrg(lImageBodyPart, bonesControlPoints):
         lImageBodyPart[i].SetOrigin(newOrg)
 
 # Get front and left image of the assembled phantom at a given pose
-def getPhantomImageAtPose(rightArm, lImageBodyPart):
-    # force a copy
-    body = sitk.Image(lImageBodyPart[0].GetSize(), lImageBodyPart[0].GetPixelIDValue())
-    body[:, :, :] = lImageBodyPart[0][:, :, :]
-    aBody = sitk.GetArrayFromImage(body)
+def getPhantomImageAtPose(rightArm, lImageBodyPart, aPhanSize):
+    aPhan = np.zeros((aPhanSize[2], aPhanSize[1], aPhanSize[0]), 'uint8')
 
-    # __printStatImage(body)
+    body = lImageBodyPart[0]
+    bodySize = body.GetSize()
+    offsetX = (aPhanSize[0]-bodySize[0]) // 2
+    offsetY = (aPhanSize[1]-bodySize[1]) // 2
+    offsetZ = (aPhanSize[2]-bodySize[2]) // 2
+
+    # copy body into the phantom array
+    aBody = sitk.GetArrayFromImage(body)
+    aPhan[offsetZ:offsetZ+bodySize[2], offsetY:offsetY+bodySize[1], offsetX:offsetX+bodySize[0]] = aBody[:, :, :]
 
     # Then assembled each piece in the main image (body)
     for i in range(1, len(lImageBodyPart)):
@@ -198,10 +208,10 @@ def getPhantomImageAtPose(rightArm, lImageBodyPart):
         aGblT = gblT.A
         aImageBodyPart = sitk.GetArrayFromImage(lImageBodyPart[i])
         
-        aBody = __core_PoseTransform(Size[0], Size[1], Size[2], aOrg, aGblT, aBody, aImageBodyPart)
+        aPhan = __core_PoseTransform(Size[0], Size[1], Size[2], aOrg, aGblT, aPhan, aImageBodyPart, offsetX, offsetY, offsetZ)
         
-    body = sitk.GetImageFromArray(aBody)
-    return __getProj2DImage(body)
+    phan = sitk.GetImageFromArray(aPhan)
+    return __getProj2DImage(phan)
 
 # Get front and left image of the assembled phantom at rest pose
 def getPhantomImageAtRestPose(lImageBodyPart):

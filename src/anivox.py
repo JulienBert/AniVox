@@ -59,16 +59,22 @@ class MainApp():
         improc.updateImageOrgWithBonesOrg(self.lImageBodyPart, bonesControlPoints)
 
         ## Prepare for viewing image
-        Nx, Ny, Nz = self.lImageBodyPart[0].GetSize()      # TODO not use the image phantom but the one that will contains the pose phantom
-        
-        self.imagePhanFrontWidth, self.imagePhanFrontHeight = Nx, Nz
-        self.imagePhanSideWidth, self.imagePhanSideHeight = Ny, Nz
+
+        # Volume size
+        self.bodySize = self.lImageBodyPart[0].GetSize()
+        # self.PhanSize = (191, 103, 585)
+        self.phanSize = (400, 400, 600)
+        # print(self.lImageBodyPart[0].GetSize()) 
+
+        self.imagePhanFrontWidth, self.imagePhanFrontHeight = self.phanSize[0], self.phanSize[2]
+        self.imagePhanSideWidth, self.imagePhanSideHeight = self.phanSize[1], self.phanSize[2]
 
         frontPMin, frontPMax, frontScaleW, frontScaleH = tools.getCenteredImage(self.imagePhanFrontWidth, self.imagePhanFrontHeight, self.frameWidth, self.frameHeight)
         self.imagePhanFrontPosMin = frontPMin
         self.imagePhanFrontPosMax = frontPMax
         self.imagePhanFrontScaleWidth = frontScaleW
         self.imagePhanFrontScaleHeight = frontScaleH
+        # print(f'Front image: offset {frontPMin} scaling {frontScaleW:.3f} {frontScaleH:.3f}')
         
         sidePMin, sidePMax, sideScaleW, sideScaleH = tools.getCenteredImage(self.imagePhanSideWidth, self.imagePhanSideHeight, self.frameWidth, self.frameHeight)
         self.imagePhanSidePosMin = sidePMin
@@ -77,7 +83,7 @@ class MainApp():
         self.imagePhanSideScaleHeight = sideScaleH
 
         ## Then get 2D projection image into texture for displaying
-        dataFront, sizeFront, dataSide, sizeSide = improc.getPhantomImageAtPose(self.rightArm, self.lImageBodyPart)
+        dataFront, sizeFront, dataSide, sizeSide = improc.getPhantomImageAtPose(self.rightArm, self.lImageBodyPart, self.phanSize)
 
         with dpg.texture_registry():
             dpg.add_dynamic_texture(self.imagePhanFrontWidth, self.imagePhanFrontHeight, dataFront, tag='image_phan_front')
@@ -120,7 +126,9 @@ class MainApp():
                                                               self.imagePhanFrontWidth, 
                                                               self.imagePhanFrontHeight,
                                                               self.imagePhanFrontScaleWidth,
-                                                              self.imagePhanFrontScaleHeight)
+                                                              self.imagePhanFrontScaleHeight,
+                                                              self.bodySize[0],
+                                                              self.bodySize[2])
                 
                 for aLine in allLines:
                     dpg.draw_line(aLine[0], aLine[1], color=aBone.getDrawColor(), thickness=2)
@@ -142,7 +150,9 @@ class MainApp():
                                                              self.imagePhanSideWidth, 
                                                              self.imagePhanSideHeight,
                                                              self.imagePhanSideScaleWidth,
-                                                             self.imagePhanSideScaleHeight)
+                                                             self.imagePhanSideScaleHeight,
+                                                             self.bodySize[1],
+                                                             self.bodySize[2])
 
                 for aLine in allLines:
                     dpg.draw_line(aLine[0], aLine[1], color=aBone.getDrawColor(), thickness=2)
@@ -192,13 +202,14 @@ class MainApp():
 
         for i in range(self.rightArm.nbBones):
             self.rightArm.setBoneOrientationRx(i, 0.0)
+            self.rightArm.setBoneOrientationRy(i, 0.0)
             self.rightArm.setBoneOrientationRz(i, 0.0)
 
         self.drawSkeleton(self.rightArm)
 
     def callBackUpdateSkin(self):
         ## get 2D projection image into texture for displaying
-        dataFront, sizeFront, dataSide, sizeSide = improc.getPhantomImageAtPose(self.rightArm, self.lImageBodyPart) 
+        dataFront, sizeFront, dataSide, sizeSide = improc.getPhantomImageAtPose(self.rightArm, self.lImageBodyPart, self.phanSize)
         dpg.set_value('image_phan_front', dataFront)
         dpg.set_value('image_phan_side', dataSide)
 
