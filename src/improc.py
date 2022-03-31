@@ -168,21 +168,32 @@ def getImagesFromFilenames(Filenames):
     return listImages
 
 # Define the bone origin within the image of each body part
-def updateImageOrgWithBonesOrg(lImageBodyPart, bonesControlPoints):
+def updateImageOrgWithBonesOrg(lImageBodyPart, bonesControlPointsL, bonesControlPointsR):
 
-    for i in range(1, len(lImageBodyPart)):
+    for i in range(1, 3):
         imOrg = lImageBodyPart[i].GetOrigin()
 
-        newXOrg = bonesControlPoints[0, i] - imOrg[0]
-        newYOrg = bonesControlPoints[1, i] - imOrg[1]
-        newZOrg = bonesControlPoints[2, i] - imOrg[2]
+        newXOrg = bonesControlPointsR[0, i] - imOrg[0]
+        newYOrg = bonesControlPointsR[1, i] - imOrg[1]
+        newZOrg = bonesControlPointsR[2, i] - imOrg[2]
+
+        newOrg = (newXOrg, newYOrg, newZOrg)
+
+        lImageBodyPart[i].SetOrigin(newOrg)
+
+    for i in range(3, 5):
+        imOrg = lImageBodyPart[i].GetOrigin()
+
+        newXOrg = bonesControlPointsL[0, i-2] - imOrg[0]
+        newYOrg = bonesControlPointsL[1, i-2] - imOrg[1]
+        newZOrg = bonesControlPointsL[2, i-2] - imOrg[2]
 
         newOrg = (newXOrg, newYOrg, newZOrg)
 
         lImageBodyPart[i].SetOrigin(newOrg)
 
 # Get front and left image of the assembled phantom at a given pose
-def getPhantomImageAtPose(rightArm, lImageBodyPart, aPhanSize):
+def getPhantomImageAtPose(rightArm, leftArm, lImageBodyPart, aPhanSize):
     aPhan = np.zeros((aPhanSize[2], aPhanSize[1], aPhanSize[0]), 'uint8')
 
     body = lImageBodyPart[0]
@@ -195,14 +206,18 @@ def getPhantomImageAtPose(rightArm, lImageBodyPart, aPhanSize):
     aBody = sitk.GetArrayFromImage(body)
     aPhan[offsetZ:offsetZ+bodySize[2], offsetY:offsetY+bodySize[1], offsetX:offsetX+bodySize[0]] = aBody[:, :, :]
 
-    # Then assembled each piece in the main image (body)
-    for i in range(1, len(lImageBodyPart)):
+    # Then assembled each piece of the right arm in the main image (body)
+    for i in range(1, 5):
         # Get image info
         Org = lImageBodyPart[i].GetOrigin()
         Size = lImageBodyPart[i].GetSize()
 
         # Get bone and global transformation
-        Bone = rightArm.getBone(i-1)
+        if i <= 2:
+            Bone = rightArm.getBone(i-1)
+        else:
+            Bone = leftArm.getBone(i-3)
+
         gblT = Bone.getGlobalTransformation()
         aOrg = np.array(Org)
         aGblT = gblT.A
