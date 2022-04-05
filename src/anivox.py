@@ -1,6 +1,7 @@
 import dearpygui.dearpygui as dpg
 import numpy as np
 import tools, rigging, improc
+import os
 
 class MainApp():
     def __init__(self):
@@ -100,6 +101,15 @@ class MainApp():
         with dpg.texture_registry():
             dpg.add_dynamic_texture(self.imagePhanSideWidth, self.imagePhanSideHeight, dataSide, tag='image_phan_side')
  
+        # with dpg.file_dialog(directory_selector=False, show=False, callback=self.callBackDialog, tag='Dialog'):
+        #     dpg.add_file_extension(".mhd", color=(255, 255, 0, 255))
+
+        with dpg.file_dialog(directory_selector=False, show=False,
+                             width=700, height=500, default_filename='PosedPhantom.mhd',
+                             callback=self.callBackDialog, tag='Dialog'):
+            dpg.add_file_extension(".mhd")
+            
+
     #     # Test
     #     with dpg.handler_registry():
     #         dpg.add_mouse_click_handler(callback=self.toto)
@@ -132,13 +142,13 @@ class MainApp():
                     aBone = skel.getBone(i)
 
                     allLines = aBone.getDrawLinesInFrontViewSpace(self.imagePhanFrontPosMin[0], 
-                                                                self.imagePhanFrontPosMin[1], 
-                                                                self.imagePhanFrontWidth, 
-                                                                self.imagePhanFrontHeight,
-                                                                self.imagePhanFrontScaleWidth,
-                                                                self.imagePhanFrontScaleHeight,
-                                                                self.bodySize[0],
-                                                                self.bodySize[2])
+                                                                  self.imagePhanFrontPosMin[1], 
+                                                                  self.imagePhanFrontWidth, 
+                                                                  self.imagePhanFrontHeight,
+                                                                  self.imagePhanFrontScaleWidth,
+                                                                  self.imagePhanFrontScaleHeight,
+                                                                  self.bodySize[0],
+                                                                  self.bodySize[2])
                     
                     for aLine in allLines:
                         dpg.draw_line(aLine[0], aLine[1], color=aBone.getDrawColor(), thickness=2)
@@ -239,12 +249,31 @@ class MainApp():
         dpg.set_value('image_phan_front', dataFront)
         dpg.set_value('image_phan_side', dataSide)
 
+    def callBackDialog(self, sender, app_data):
+        exportPathFilename = app_data['file_path_name']
+        if not os.path.exists(exportPathFilename):
+            # check out simple module for details
+            # with dpg.popup(parent='MainWin'):
+            #     dpg.add_text("A popup")
+            dpg.configure_item("modal_id", show=True)
+            print('ok')
+
+
+
     # Start Main app
     def start(self):
 
+        with dpg.window(label="Delete Files", modal=True, show=False, id="modal_id", no_title_bar=True):
+            dpg.add_text("All those beautiful files will be deleted.\nThis operation cannot be undone!")
+            dpg.add_separator()
+            dpg.add_checkbox(label="Don't ask me next time")
+            with dpg.group(horizontal=True):
+                dpg.add_button(label="OK", width=75, callback=lambda: dpg.configure_item("modal_id", show=False))
+                dpg.add_button(label="Cancel", width=75, callback=lambda: dpg.configure_item("modal_id", show=False))
+
         # Main window
         with dpg.window(label="Main Window", width=self.mainWinWidth, height=self.mainWinHeight, pos=(0, 0), no_background=True,
-                                no_move=True, no_resize=True, no_collapse=True, no_close=True, no_title_bar=True):
+                                no_move=True, no_resize=True, no_collapse=True, no_close=True, no_title_bar=True, tag='MainWin'):
             
             with dpg.group(horizontal=True):
                 with dpg.group(horizontal=False, width=self.frameWidth):
@@ -280,6 +309,9 @@ class MainApp():
                     dpg.add_checkbox(label="Show bones", default_value=True, callback=self.callBackShowRightBones, tag='checkShowRightBones')
                     dpg.add_spacer(height=40)
                     dpg.add_button(label='UPDATE SKIN', small=True, callback=self.callBackUpdateSkin)
+                    dpg.add_spacer(height=40)
+                    
+                    dpg.add_button(label='EXPORT PHANTOM', callback=lambda: dpg.show_item('Dialog'))
 
                 with dpg.drawlist(tag='leftView', width=self.frameWidth, height=self.frameHeight):
                     dpg.draw_image('image_phan_front', 
