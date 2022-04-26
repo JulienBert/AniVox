@@ -180,6 +180,9 @@ def getImagesFromFilenames(Filenames):
         listImages.append(sitk.ReadImage(name, imageIO='MetaImageIO'))
     return listImages
 
+def exportPhanPosed(image, pathFilename):
+    sitk.WriteImage(image, pathFilename)
+
 # Define the bone origin within the image of each body part
 def updateImageOrgWithBonesOrg(lImageBodyPart, bonesControlPointsL, bonesControlPointsR):
 
@@ -205,8 +208,8 @@ def updateImageOrgWithBonesOrg(lImageBodyPart, bonesControlPointsL, bonesControl
 
         lImageBodyPart[i].SetOrigin(newOrg)
 
-# Get front and left image of the assembled phantom at a given pose
-def getPhantomImageAtPose(rightArm, leftArm, lImageBodyPart, aPhanSize):
+# Get the assembled phantom at a given pose
+def getPhantomAtPose(rightArm, leftArm, lImageBodyPart, aPhanSize):
     aPhan = np.zeros((aPhanSize[2], aPhanSize[1], aPhanSize[0]), 'uint8')
 
     body = lImageBodyPart[0]
@@ -239,6 +242,12 @@ def getPhantomImageAtPose(rightArm, leftArm, lImageBodyPart, aPhanSize):
         aPhan = __core_PoseTransform(Size[0], Size[1], Size[2], aOrg, aGblT, aPhan, aImageBodyPart, offsetX, offsetY, offsetZ)
         
     phan = sitk.GetImageFromArray(aPhan)
+
+    return phan
+
+# Get front and left image of the assembled phantom at a given pose
+def getPhantomImageAtPose(rightArm, leftArm, lImageBodyPart, aPhanSize):
+    phan = getPhantomAtPose(rightArm, leftArm, lImageBodyPart, aPhanSize)
     return __getProj2DImage(phan)
 
 # Get front and left image of the assembled phantom at rest pose

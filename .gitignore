@@ -6,3 +6,4 @@ __pycache__
 *.mhd
 *.raw
 debug.png
+output

@@ -40,6 +40,8 @@ class MainApp():
         dpg.setup_dearpygui()
         dpg.show_viewport()
 
+        self.exportPathFilename = None
+
         ## Everything is express in 3D image phantom space
 
         ## Build the right arm
@@ -105,7 +107,7 @@ class MainApp():
         #     dpg.add_file_extension(".mhd", color=(255, 255, 0, 255))
 
         with dpg.file_dialog(directory_selector=False, show=False,
-                             width=700, height=500, default_filename='PosedPhantom.mhd',
+                             width=700, height=500, default_filename='PosedPhantom',
                              callback=self.callBackDialog, tag='Dialog'):
             dpg.add_file_extension(".mhd")
             
@@ -178,6 +180,12 @@ class MainApp():
                     for aLine in allLines:
                         dpg.draw_line(aLine[0], aLine[1], color=aBone.getDrawColor(), thickness=2)
 
+    def savePosedPhantom(self):
+        if self.exportPathFilename is not None:
+            imPhan = improc.getPhantomAtPose(self.rightArm, self.leftArm, self.lImageBodyPart, self.phanSize)
+            improc.exportPhanPosed(imPhan, self.exportPathFilename)
+            print('Save to:', self.exportPathFilename)
+
     # Callback RIGHT ARM
     def callBackSliderRotXArmRight(self, sender, app_data):
         self.rightArm.setBoneOrientationRx(0, np.pi*app_data/180.0)
@@ -238,6 +246,7 @@ class MainApp():
 
         self.drawSkeleton([self.leftArm, self.rightArm])
 
+    # Callback UI
     def callBackShowRightBones(self, sender, app_data):
         flag = dpg.get_value(sender)
         dpg.configure_item('bonesLayerLeftView', show=flag)
@@ -250,26 +259,30 @@ class MainApp():
         dpg.set_value('image_phan_side', dataSide)
 
     def callBackDialog(self, sender, app_data):
-        exportPathFilename = app_data['file_path_name']
-        if not os.path.exists(exportPathFilename):
-            # check out simple module for details
-            # with dpg.popup(parent='MainWin'):
-            #     dpg.add_text("A popup")
-            dpg.configure_item("modal_id", show=True)
-            print('ok')
+        self.exportPathFilename = app_data['file_path_name']
 
+        if os.path.exists(self.exportPathFilename):
+            dpg.configure_item("modalDialBox", show=True)
+        else:
+            self.savePosedPhantom()      
+    
+    def callSaveDialBoxOK(self, sender, app_data):
+        dpg.configure_item("modalDialBox", show=False)
+        self.savePosedPhantom()
 
+    def callSaveDialBoxCancel(self, sender, app_data):
+        dpg.configure_item("modalDialBox", show=False)
 
     # Start Main app
     def start(self):
 
-        with dpg.window(label="Delete Files", modal=True, show=False, id="modal_id", no_title_bar=True):
-            dpg.add_text("All those beautiful files will be deleted.\nThis operation cannot be undone!")
-            dpg.add_separator()
-            dpg.add_checkbox(label="Don't ask me next time")
+        with dpg.window(label="Delete Files", modal=True, show=False, id="modalDialBox", no_title_bar=True):
+            dpg.add_text("This file exists, overwrite?")
+            # dpg.add_separator()
+            # dpg.add_checkbox(label="Don't ask me next time")
             with dpg.group(horizontal=True):
-                dpg.add_button(label="OK", width=75, callback=lambda: dpg.configure_item("modal_id", show=False))
-                dpg.add_button(label="Cancel", width=75, callback=lambda: dpg.configure_item("modal_id", show=False))
+                dpg.add_button(label="OK", width=100, callback=self.callSaveDialBoxOK)
+                dpg.add_button(label="Cancel", width=100, callback=self.callSaveDialBoxCancel)
 
         # Main window
         with dpg.window(label="Main Window", width=self.mainWinWidth, height=self.mainWinHeight, pos=(0, 0), no_background=True,
